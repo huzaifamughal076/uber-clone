@@ -82,6 +82,7 @@ class AuthenticationProvider extends ChangeNotifier {
           notifyListeners();
           // Navigate to the OTP screen
           Future.delayed(const Duration(seconds: 1)).whenComplete(() {
+            if (!context.mounted) return;
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -98,17 +99,9 @@ class AuthenticationProvider extends ChangeNotifier {
       );
     } on FirebaseException catch (e) {
       stopLoading(); // Stop loading on Firebase exception
+      if (!context.mounted) return;
       commonMethods.displaySnackBar(e.toString(), context);
     }
-  }
-
-// Helper method to check if the phone number exists in Firebase Realtime Database
-  Future<bool> _checkPhoneNumberExists(String phoneNumber) async {
-    DatabaseReference usersRef = FirebaseDatabase.instance.ref().child("users");
-    DatabaseEvent snapshot =
-        await usersRef.orderByChild("phone").equalTo(phoneNumber).once();
-
-    return snapshot.snapshot.exists;
   }
 
   void verifyOTP({
@@ -141,6 +134,7 @@ class AuthenticationProvider extends ChangeNotifier {
     } on FirebaseException catch (e) {
       _isLoading = false;
       notifyListeners();
+      if (!context.mounted) return;
       commonMethods.displaySnackBar(e.toString(), context);
     }
   }
@@ -170,6 +164,7 @@ class AuthenticationProvider extends ChangeNotifier {
     } on FirebaseException catch (e) {
       stopLoading();
       notifyListeners();
+      if (!context.mounted) return;
       commonMethods.displaySnackBar(e.toString(), context);
     }
   }
@@ -243,10 +238,10 @@ class AuthenticationProvider extends ChangeNotifier {
         notifyListeners(); // Notify listeners to update the UI
       } else {
         // Handle the case where user data does not exist
-        print("User data not found.");
+        debugPrint("User data not found.");
       }
     } catch (e) {
-      print("An error occurred while fetching user data: $e");
+      debugPrint("An error occurred while fetching user data: $e");
     }
   }
 
@@ -282,11 +277,11 @@ class AuthenticationProvider extends ChangeNotifier {
           return false;
         }
       } else {
-        print("User data not found or not in the expected format.");
+        debugPrint("User data not found or not in the expected format.");
         return false; // Default to not blocked if data isn't found
       }
     } catch (e) {
-      print("An error occurred while checking block status: $e");
+      debugPrint("An error occurred while checking block status: $e");
       return false; // Default to not blocked in case of an error
     }
   }
@@ -319,11 +314,11 @@ class AuthenticationProvider extends ChangeNotifier {
           return true; // All fields are filled
         }
       } else {
-        print("User data not found or not in the expected format.");
+        debugPrint("User data not found or not in the expected format.");
         return false;
       }
     } catch (e) {
-      print("An error occurred while checking user fields: $e");
+      debugPrint("An error occurred while checking user fields: $e");
       return false;
     }
   }
@@ -363,6 +358,7 @@ class AuthenticationProvider extends ChangeNotifier {
       stopGoogleLoading();
     } on FirebaseAuthException catch (e) {
       stopGoogleLoading();
+      if (!context.mounted) return;
       commonMethods.displaySnackBar(
           e.message ?? "Failed to sign in with Google", context);
     }
@@ -379,6 +375,7 @@ class AuthenticationProvider extends ChangeNotifier {
       _isGoogleSignedIn = false;
       notifyListeners();
 
+      if (!context.mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -390,6 +387,7 @@ class AuthenticationProvider extends ChangeNotifier {
       stopLoading();
     } on FirebaseAuthException catch (e) {
       stopLoading();
+      if (!context.mounted) return;
       commonMethods.displaySnackBar(e.message ?? "Failed to sign out", context);
     }
   }

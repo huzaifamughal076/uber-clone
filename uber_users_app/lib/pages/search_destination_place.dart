@@ -24,7 +24,7 @@ class _SearchDestinationPlaceState extends State<SearchDestinationPlace> {
     if (locationName.length > 1) {
       String apiPlacesUrl =
           "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$locationName&key=$googleMapKey&components=country:pk";
-      print('API PLACE URL $apiPlacesUrl');
+      debugPrint('API PLACE URL $apiPlacesUrl');
 
       var responseFromPlacesAPI =
           await CommonMethods.sendRequestToAPI(apiPlacesUrl);
@@ -47,7 +47,20 @@ class _SearchDestinationPlaceState extends State<SearchDestinationPlace> {
           setState(() {
             dropOffPredictionsPlacesList = predictionsList;
           });
-          print("predicted places = " + predictionsResultsInJson.toString());
+          debugPrint("predicted places = $predictionsResultsInJson");
+        }
+      } else {
+        // Surface API errors instead of failing silently (e.g. billing
+        // disabled, API not enabled, key restricted).
+        final status = responseFromPlacesAPI["status"];
+        final message = responseFromPlacesAPI["error_message"] ?? "";
+        debugPrint("Places Autocomplete failed: $status - $message");
+        if (mounted) {
+          setState(() => dropOffPredictionsPlacesList = []);
+          CommonMethods().displaySnackBar(
+            "Places search failed: $status${message.isNotEmpty ? "\n$message" : ""}",
+            context,
+          );
         }
       }
     }
@@ -56,11 +69,11 @@ class _SearchDestinationPlaceState extends State<SearchDestinationPlace> {
   @override
   Widget build(BuildContext context) {
     String userAddress = Provider.of<AppInfoClass>(context, listen: false)
-            .pickUpLocation!
-            .humanReadableAddress ??
+            .pickUpLocation
+            ?.humanReadableAddress ??
         '';
 
-    print('User Pick Up Location ${userAddress}');
+    debugPrint('User Pick Up Location $userAddress');
 
     pickUpTextEditingController.text = userAddress;
     mq = MediaQuery.sizeOf(context);
@@ -205,7 +218,7 @@ class _SearchDestinationPlaceState extends State<SearchDestinationPlace> {
                         horizontal: 5,
                       ),
                       child: ListView.separated(
-                        padding: EdgeInsets.all(0),
+                        padding: const EdgeInsets.all(0),
                         
                         
                         itemBuilder: (context, index) {

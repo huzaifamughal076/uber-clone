@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -16,10 +15,8 @@ import 'package:restart_app/restart_app.dart';
 import 'package:uber_users_app/appInfo/app_info.dart';
 import 'package:uber_users_app/appInfo/auth_provider.dart';
 import 'package:uber_users_app/authentication/register_screen.dart';
-import 'package:uber_users_app/pages/profile_page.dart';
 import 'package:uber_users_app/pages/search_destination_place.dart';
 import 'package:uber_users_app/widgets/custome_drawer.dart';
-import 'package:uber_users_app/widgets/sign_out_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../global/global_var.dart';
 import '../global/trip_var.dart';
@@ -32,8 +29,6 @@ import '../widgets/bid_dialog.dart';
 import '../widgets/info_dialog.dart';
 import '../widgets/loading_dialog.dart';
 import '../widgets/payment_dialog.dart';
-import 'about_page.dart';
-import 'trips_history_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -75,22 +70,26 @@ class _HomePageState extends State<HomePage> {
   String estimatedTimeCar = "";
   double actualFareAmount = 0.0;
   String estimatedTime = "";
+  String? googleMapStyle;
 
   makeDriverNearbyCarIcon() {
     if (carIconNearbyDriver == null) {
       ImageConfiguration configuration =
           createLocalImageConfiguration(context, size: const Size(0.5, 0.5));
-      BitmapDescriptor.fromAssetImage(
-              configuration, "assets/images/tracking.png")
+      BitmapDescriptor.asset(configuration, "assets/images/tracking.png")
           .then((iconImage) {
         carIconNearbyDriver = iconImage;
       });
     }
   }
 
-  void updateMapTheme(GoogleMapController controller) {
-    getJsonFileFromThemes("themes/night_style.json")
-        .then((value) => setGoogleMapStyle(value, controller));
+  Future<void> updateMapTheme() async {
+    final style = await getJsonFileFromThemes("themes/night_style.json");
+    if (mounted) {
+      setState(() {
+        googleMapStyle = style;
+      });
+    }
   }
 
   Future<String> getJsonFileFromThemes(String mapStylePath) async {
@@ -100,13 +99,10 @@ class _HomePageState extends State<HomePage> {
     return utf8.decode(list);
   }
 
-  setGoogleMapStyle(String googleMapStyle, GoogleMapController controller) {
-    controller.setMapStyle(googleMapStyle);
-  }
-
   getCurrentLiveLocationOfUser() async {
     Position positionOfUser = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.bestForNavigation);
+        locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.bestForNavigation));
     currentPositionOfUser = positionOfUser;
     LatLng positionOfUserInLatLng = LatLng(
         currentPositionOfUser!.latitude, currentPositionOfUser!.longitude);
@@ -116,6 +112,7 @@ class _HomePageState extends State<HomePage> {
     controllerGoogleMap!
         .animateCamera(CameraUpdate.newCameraPosition(cameraPosition));
 
+    if (!mounted) return;
     await CommonMethods.convertGeoGraphicCoOrdinatesIntoHumanReadableAddress(
         currentPositionOfUser!, context);
 
@@ -143,6 +140,7 @@ class _HomePageState extends State<HomePage> {
         } else {
           FirebaseAuth.instance.signOut();
 
+          if (!mounted) return;
           Navigator.push(context,
               MaterialPageRoute(builder: (c) => const RegisterScreen()));
 
@@ -151,6 +149,7 @@ class _HomePageState extends State<HomePage> {
         }
       } else {
         FirebaseAuth.instance.signOut();
+        if (!mounted) return;
         Navigator.push(
             context, MaterialPageRoute(builder: (c) => const RegisterScreen()));
       }
@@ -186,7 +185,7 @@ class _HomePageState extends State<HomePage> {
       barrierDismissible: false,
       context: context,
       builder: (BuildContext context) =>
-          LoadingDialog(messageText: "Getting direction..."),
+          const LoadingDialog(messageText: "Getting direction..."),
     );
 
     ///Directions API
@@ -200,6 +199,7 @@ class _HomePageState extends State<HomePage> {
       });
     }
 
+    if (!mounted) return;
     Navigator.pop(context);
 
     //draw route from pickup to dropOffDestination
@@ -209,10 +209,10 @@ class _HomePageState extends State<HomePage> {
 
     polylineCoOrdinates.clear();
     if (latLngPointsFromPickUpToDestination.isNotEmpty) {
-      latLngPointsFromPickUpToDestination.forEach((PointLatLng latLngPoint) {
+      for (var latLngPoint in latLngPointsFromPickUpToDestination) {
         polylineCoOrdinates
             .add(LatLng(latLngPoint.latitude, latLngPoint.longitude));
-      });
+      }
     }
 
     polylineSet.clear();
@@ -372,7 +372,7 @@ class _HomePageState extends State<HomePage> {
       });
     }
 
-    Set<Marker> markersTempSet = Set<Marker>();
+    Set<Marker> markersTempSet = <Marker>{};
 
     for (OnlineNearbyDrivers eachOnlineNearbyDriver
         in ManageDriversMethods.nearbyOnlineDriversList) {
@@ -381,7 +381,7 @@ class _HomePageState extends State<HomePage> {
 
       Marker driverMarker = Marker(
         markerId: MarkerId(
-            "driver ID = " + eachOnlineNearbyDriver.uidDriver.toString()),
+            "driver ID = ${eachOnlineNearbyDriver.uidDriver}"),
         position: driverCurrentPosition,
         icon: carIconNearbyDriver!,
       );
@@ -465,7 +465,7 @@ class _HomePageState extends State<HomePage> {
 
     // Guard against null locations
     if (pickUpLocation == null || dropOffDestinationLocation == null) {
-      print('Error: Pickup or Drop-off location is null.');
+      debugPrint('Error: Pickup or Drop-off location is null.');
       return;
     }
 
@@ -507,7 +507,7 @@ class _HomePageState extends State<HomePage> {
       "bidAmount": bidAmount.toString(),
       "vehicleType": selectedVehicle.toString(),
     };
-    print("Bidded Amount ${bidAmount}");
+    debugPrint("Bidded Amount $bidAmount");
 
     tripRequestRef?.set(dataMap);
 
@@ -549,10 +549,10 @@ class _HomePageState extends State<HomePage> {
             }
           } catch (e) {
             // Log an error if parsing fails
-            print('Error parsing driver location: $e');
+            debugPrint('Error parsing driver location: $e');
           }
         } else {
-          print('Driver latitude or longitude is empty.');
+          debugPrint('Driver latitude or longitude is empty.');
         }
       }
 
@@ -573,6 +573,7 @@ class _HomePageState extends State<HomePage> {
         // Determine the amount to pass to the PaymentDialog based on bidAmount
         double? finalFareAmount = bidAmount ?? fareAmount;
 
+        if (!mounted) return;
         var responseFromPaymentDialog = await showDialog(
           context: context,
           builder: (BuildContext context) =>
@@ -677,7 +678,7 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) => InfoDialog(
+      builder: (BuildContext context) => const InfoDialog(
         title: "No Driver Available",
         description:
             "No driver found in the nearby location. Please try again shortly.",
@@ -686,7 +687,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   searchDriver() {
-    if (availableNearbyOnlineDriversList!.length == 0) {
+    if (availableNearbyOnlineDriversList!.isEmpty) {
       cancelRideRequest();
       resetAppNow();
       noDriverAvailable();
@@ -704,7 +705,7 @@ class _HomePageState extends State<HomePage> {
   sendNotificationToDriver(OnlineNearbyDrivers currentDriver) {
     // Ensure tripRequestRef and driver UID are not null
     if (tripRequestRef == null || currentDriver.uidDriver == null) {
-      print("Error: tripRequestRef or driver UID is null.");
+      debugPrint("Error: tripRequestRef or driver UID is null.");
       return;
     }
 
@@ -718,7 +719,7 @@ class _HomePageState extends State<HomePage> {
     try {
       currentDriverRef.set(tripRequestRef!.key);
     } catch (e) {
-      print("Error updating driver's newTripStatus: $e");
+      debugPrint("Error updating driver's newTripStatus: $e");
       return;
     }
 
@@ -735,14 +736,15 @@ class _HomePageState extends State<HomePage> {
 
         // Send notification
         try {
+          if (!mounted) return;
           PushNotificationService.sendNotificationToSelectedDriver(
               deviceToken, context, tripRequestRef!.key.toString());
         } catch (e) {
-          print("Error sending notification: $e");
+          debugPrint("Error sending notification: $e");
           return;
         }
       } else {
-        print("No deviceToken found for the driver.");
+        debugPrint("No deviceToken found for the driver.");
         return;
       }
 
@@ -783,11 +785,11 @@ class _HomePageState extends State<HomePage> {
           }
         });
       } catch (e) {
-        print("Error during timer execution: $e");
+        debugPrint("Error during timer execution: $e");
         timer?.cancel();
       }
     }).catchError((error) {
-      print("Error fetching driver's device token: $error");
+      debugPrint("Error fetching driver's device token: $error");
     });
   }
 
@@ -876,6 +878,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             ///google map
             GoogleMap(
+              style: googleMapStyle,
               padding: EdgeInsets.only(top: 26, bottom: bottomMapPadding),
               mapType: MapType.normal,
               myLocationEnabled: true,
@@ -887,7 +890,7 @@ class _HomePageState extends State<HomePage> {
               initialCameraPosition: googlePlexInitialPosition,
               onMapCreated: (GoogleMapController mapController) async {
                 controllerGoogleMap = mapController;
-                //updateMapTheme(controllerGoogleMap!);
+                //updateMapTheme();
 
                 googleMapCompleterController.complete(controllerGoogleMap);
 
@@ -1658,14 +1661,27 @@ class _HomePageState extends State<HomePage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           ClipOval(
-                            child: Image.network(
-                              photoDriver == ''
-                                  ? "https://firebasestorage.googleapis.com/v0/b/everyone-2de50.appspot.com/o/avatarman.png?alt=media&token=702d209c-9f99-46b2-832f-5bb986bc5eac"
-                                  : photoDriver,
-                              width: 60,
-                              height: 60,
-                              fit: BoxFit.cover,
-                            ),
+                            child: photoDriver == ''
+                                ? Image.asset(
+                                    "assets/images/avatarman.png",
+                                    width: 60,
+                                    height: 60,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.network(
+                                    photoDriver,
+                                    width: 60,
+                                    height: 60,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Image.asset(
+                                      "assets/images/avatarman.png",
+                                      width: 60,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
                           ),
                           const SizedBox(
                             width: 8,

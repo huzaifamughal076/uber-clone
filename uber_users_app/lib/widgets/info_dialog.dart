@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:restart_app/restart_app.dart';
 
 class InfoDialog extends StatelessWidget {
-  String? title, description;
-  InfoDialog({super.key, this.title, this.description});
+  final String? title, description;
+  const InfoDialog({super.key, this.title, this.description});
 
   @override
   Widget build(BuildContext context) {

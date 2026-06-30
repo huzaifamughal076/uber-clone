@@ -4,7 +4,7 @@ import 'package:uber_users_app/services/stripe_payment_service.dart';
 class PaymentDialog extends StatefulWidget {
   final String fareAmount;
 
-  PaymentDialog({
+  const PaymentDialog({
     super.key,
     required this.fareAmount,
   });
@@ -42,7 +42,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
             const Divider(height: 1.5, color: Colors.black54, thickness: 1.0),
             const SizedBox(height: 16),
             Text(
-              "\Rs ${widget.fareAmount}",
+              "Rs ${widget.fareAmount}",
               style: const TextStyle(
                   color: Colors.black,
                   fontSize: 36,
@@ -101,6 +101,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
           await _paymentService.createPaymentIntent(amountInPaisa, 'PKR');
 
       if (paymentIntent != null) {
+        if (!mounted) return;
         // Initialize the payment sheet
         await _paymentService.initPaymentSheet(
           context,
@@ -109,6 +110,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
         );
 
         // Display the payment sheet
+        if (!mounted) return;
         await _paymentService.displayPaymentSheet(
             context, paymentIntent!['client_secret']);
 
@@ -116,7 +118,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
         paymentIntent = null;
       }
     } catch (e) {
-      print("Exception: $e");
+      debugPrint("Exception: $e");
     }
   }
 }

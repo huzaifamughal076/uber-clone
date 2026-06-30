@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:googleapis/analytics/v3.dart';
 import 'package:uber_users_app/appInfo/auth_provider.dart';
 import 'package:uber_users_app/global/global_var.dart';
 import 'package:uber_users_app/pages/about_page.dart';
@@ -13,10 +12,10 @@ class CustomDrawer extends StatelessWidget {
       authProvider; // Pass the auth provider for sign out
 
   const CustomDrawer({
-    Key? key,
+    super.key,
     required this.userName,
     required this.authProvider,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -74,19 +73,16 @@ class CustomDrawer extends StatelessWidget {
               leading: const Icon(Icons.settings),
               title: const Text('Settings'),
               onTap: () {
-                ;
               }),
           ListTile(
               leading: const Icon(Icons.privacy_tip),
               title: const Text('Privacy'),
               onTap: () {
-                ;
               }),
           ListTile(
               leading: const Icon(Icons.help),
               title: const Text('Help'),
               onTap: () {
-                ;
               }),
           ListTile(
             leading: const Icon(
@@ -109,7 +105,6 @@ class CustomDrawer extends StatelessWidget {
               leading: const Icon(Icons.star_rate),
               title: const Text('Rate Us'),
               onTap: () {
-                ;
               }),
 
           ListTile(

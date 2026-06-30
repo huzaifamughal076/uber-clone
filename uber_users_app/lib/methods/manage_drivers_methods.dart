@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:uber_users_app/models/online_nearby_drivers.dart';
 
 class ManageDriversMethods {
@@ -11,7 +12,7 @@ class ManageDriversMethods {
       // Ensure the index is valid
       nearbyOnlineDriversList.removeAt(index);
     } else {
-      print("Driver with ID $driverId not found in the list.");
+      debugPrint("Driver with ID $driverId not found in the list.");
     }
   }
 
@@ -27,7 +28,7 @@ class ManageDriversMethods {
       nearbyOnlineDriversList[index].lngDriver =
           nearbyOnlineDriverInformation.lngDriver;
     } else {
-      print(
+      debugPrint(
           "Driver with ID ${nearbyOnlineDriverInformation.uidDriver} not found in the list.");
     }
   }

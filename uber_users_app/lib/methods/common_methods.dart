@@ -39,11 +39,11 @@ class CommonMethods {
         var dataDecoded = jsonDecode(dataFromApi);
         return dataDecoded;
       } else {
-        print('error');
+        debugPrint('error');
         return "error";
       }
     } catch (errorMsg) {
-      print(errorMsg);
+      debugPrint(errorMsg.toString());
       return "error";
     }
   }
@@ -66,8 +66,10 @@ class CommonMethods {
       model.longitudePosition = position.longitude;
       model.latitudePosition = position.latitude;
 
-      Provider.of<AppInfoClass>(context, listen: false)
-          .updatePickUpLocation(model);
+      if (context.mounted) {
+        Provider.of<AppInfoClass>(context, listen: false)
+            .updatePickUpLocation(model);
+      }
     }
 
     return humanReadableAddress;
@@ -92,20 +94,20 @@ class CommonMethods {
     String urlDirectionAPI =
         "https://maps.googleapis.com/maps/api/directions/json?destination=${destination.latitude},${destination.longitude}&origin=${source.latitude},${source.longitude}&mode=driving&key=$googleMapKey";
 
-    print("URL: $urlDirectionAPI"); // Debugging: Log the URL
+    debugPrint("URL: $urlDirectionAPI"); // Debugging: Log the URL
 
     var responseFromDirectionAPI = await sendRequestToAPI(urlDirectionAPI);
 
     if (responseFromDirectionAPI == "error") {
-      print("Error in response"); // Debugging: Log error
+      debugPrint("Error in response"); // Debugging: Log error
       return null;
     }
 
-    print("Response: $responseFromDirectionAPI"); // Debugging: Log the response
+    debugPrint("Response: $responseFromDirectionAPI"); // Debugging: Log the response
 
     if (responseFromDirectionAPI["routes"] == null ||
         responseFromDirectionAPI["routes"].isEmpty) {
-      print("No routes found in the response.");
+      debugPrint("No routes found in the response.");
       return null;
     }
 
@@ -122,7 +124,7 @@ class CommonMethods {
       directionDetails.encodedPoints =
           responseFromDirectionAPI["routes"][0]["overview_polyline"]["points"];
     } catch (e) {
-      print("Error processing response data: $e");
+      debugPrint("Error processing response data: $e");
       return null;
     }
     return directionDetails;

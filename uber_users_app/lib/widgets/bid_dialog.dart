@@ -11,7 +11,7 @@ class BidDialogWidget extends StatefulWidget {
   });
 
   @override
-  _BidDialogWidgetState createState() => _BidDialogWidgetState();
+  State<BidDialogWidget> createState() => _BidDialogWidgetState();
 }
 
 class _BidDialogWidgetState extends State<BidDialogWidget> {
@@ -88,7 +88,6 @@ class _BidDialogWidgetState extends State<BidDialogWidget> {
   }
 
   String? _validateBidAmount() {
-    double fare = widget.initialFareAmount!;
     double bid = double.tryParse(bidController.text) ?? 0.0;
 
     double lowerLimit = _calculateLowerLimit();
@@ -121,7 +120,7 @@ class _BidDialogWidgetState extends State<BidDialogWidget> {
       child: Text(
         _enteredBidAmount == null || _validateBidAmount() != null
             ? "Set Bid"
-            : 'Bid: Rs. ${_enteredBidAmount}',
+            : 'Bid: Rs. $_enteredBidAmount',
         style: const TextStyle(color: Colors.white),
       ),
     );

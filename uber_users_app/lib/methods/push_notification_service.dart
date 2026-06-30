@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:googleapis_auth/auth_io.dart' as auth;
-import 'package:googleapis/servicecontrol/v1.dart' as servicecontrol;
 import 'package:provider/provider.dart';
 import 'package:uber_users_app/appInfo/app_info.dart';
 import 'package:uber_users_app/global/global_var.dart';
@@ -48,14 +47,14 @@ class PushNotificationService {
       client.close();
       return credentials.accessToken.data;
     } catch (e) {
-      print("Failed to obtain access token: $e");
+      debugPrint("Failed to obtain access token: $e");
       rethrow; // Optionally rethrow the exception
     }
   }
 
   static sendNotificationToSelectedDriver(
       String deviceToken, BuildContext context, String tripID) async {
-        print('device token, ${deviceToken}');
+        debugPrint('device token, $deviceToken');
     String dropOffDesitinationAddress =
         Provider.of<AppInfoClass>(context, listen: false)
             .dropOffLocation!
@@ -65,7 +64,7 @@ class PushNotificationService {
         .pickUpLocation!
         .placeName
         .toString();
-    print('pickup address is ${pickUpAddress}');
+    debugPrint('pickup address is $pickUpAddress');
     final String serverKeyTokenKey = await getAccessToken();
     String endpointFirebaseCloudMessaging =
         "https://fcm.googleapis.com/v1/projects/everyone-2de50/messages:send";
@@ -91,9 +90,9 @@ class PushNotificationService {
       body: jsonEncode(message),
     );
     if (response.statusCode == 200) {
-      print("Notifcation send successfully. ${response.statusCode}");
+      debugPrint("Notifcation send successfully. ${response.statusCode}");
     } else {
-      print('Failed to send notification, ${response.statusCode}');
+      debugPrint('Failed to send notification, ${response.statusCode}');
     }
   }
 }

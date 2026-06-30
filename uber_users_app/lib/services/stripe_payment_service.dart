@@ -23,10 +23,10 @@ class StripePaymentService {
         },
         body: body,
       );
-      print('Payment Intent Body: ${response.body}');
+      debugPrint('Payment Intent Body: ${response.body}');
       return jsonDecode(response.body);
     } catch (err) {
-      print('Error creating payment intent: ${err.toString()}');
+      debugPrint('Error creating payment intent: ${err.toString()}');
       return null;
     }
   }
@@ -36,18 +36,21 @@ class StripePaymentService {
       BuildContext context, String clientSecret) async {
     try {
       await Stripe.instance.presentPaymentSheet();
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Paid successfully")),
       );
       // Payment was successful, send "paid" back
     } on StripeException catch (e) {
-      print('Error: $e');
+      debugPrint('Error: $e');
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Payment Cancelled")),
       );
       // Payment was cancelled, send "no paid" back
     } catch (e) {
-      print("Error displaying payment sheet: $e");
+      debugPrint("Error displaying payment sheet: $e");
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Payment Failed")),
       );
@@ -71,7 +74,7 @@ class StripePaymentService {
         ),
       );
     } catch (e) {
-      print("Error initializing payment sheet: $e");
+      debugPrint("Error initializing payment sheet: $e");
     }
   }
 }

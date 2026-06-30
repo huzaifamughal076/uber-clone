@@ -77,7 +77,7 @@ class _TripsHistoryPageState extends State<TripsHistoryPage> {
             });
 
             return ListView.builder(
-              padding: EdgeInsets.all(5),
+              padding: const EdgeInsets.all(5),
               shrinkWrap: true,
               itemCount: tripsList.length,
               itemBuilder: (context, index) {
@@ -115,8 +115,7 @@ class _TripsHistoryPageState extends State<TripsHistoryPage> {
                               ),
                               const SizedBox(width: 5),
                               Text(
-                                "\Rs " +
-                                    tripsList[index]["fareAmount"].toString(),
+                                "Rs ${tripsList[index]["fareAmount"]}",
                                 style: const TextStyle(
                                   fontSize: 16,
                                   //color: Colors.white,

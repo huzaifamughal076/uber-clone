@@ -9,7 +9,7 @@ import 'package:uber_users_app/pages/home_page.dart';
 
 class OTPScreen extends StatefulWidget {
   final String verificationId;
-  const OTPScreen({Key? key, required this.verificationId}) : super(key: key);
+  const OTPScreen({super.key, required this.verificationId});
 
   @override
   State<OTPScreen> createState() => _OTPScreenState();
@@ -166,6 +166,7 @@ class _OTPScreenState extends State<OTPScreen> {
 
           if (isBlocked) {
             // Navigate to Block Screen if blocked
+            if (!mounted) return;
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -183,6 +184,7 @@ class _OTPScreenState extends State<OTPScreen> {
             } else {
               // Navigate to driver registration if profile is incomplete
               navigate(isSingedIn: false);
+              if (!mounted) return;
               commonMethods.displaySnackBar(
                 "Fill your missing information!",
                 context,

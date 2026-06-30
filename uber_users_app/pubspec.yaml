@@ -37,12 +37,16 @@ dependencies:
   firebase_database:
   firebase_storage:
   permission_handler:
-  geolocator:
+  geolocator: ^14.0.3
   http:
   provider:
   flutter_polyline_points:
   loading_animation_widget:
+  # Vendored: upstream flutter_geofire 2.0.3 references Flutter's removed v1
+  # PluginRegistry.Registrar API and won't compile on modern Flutter. The local
+  # copy has the dead import removed. See plugins/flutter_geofire.
   flutter_geofire:
+    path: plugins/flutter_geofire
   googleapis:
   googleapis_auth:
   restart_app: ^1.2.1
