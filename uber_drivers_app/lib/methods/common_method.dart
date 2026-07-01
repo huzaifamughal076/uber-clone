@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_geofire/flutter_geofire.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import '../global/global.dart';
@@ -48,16 +48,16 @@ class CommonMethods {
       print("positionStreamHomePage is null, cannot resume.");
     }
 
-    // Check if driverCurrentPosition is not null before updating Geofire
+    // Republish the driver's location to onlineDrivers (plain RTDB, no geofire)
     if (driverCurrentPosition != null) {
-      Geofire.setLocation(
-        FirebaseAuth.instance.currentUser!.uid,
-        driverCurrentPosition!.latitude,
-        driverCurrentPosition!.longitude,
-      );
+      FirebaseDatabase.instance
+          .ref("onlineDrivers/${FirebaseAuth.instance.currentUser!.uid}")
+          .set({
+        "lat": driverCurrentPosition!.latitude,
+        "lng": driverCurrentPosition!.longitude,
+      });
     } else {
-      // Handle the case where driverCurrentPosition is null (optional)
-      print("driverCurrentPosition is null, cannot update Geofire.");
+      print("driverCurrentPosition is null, cannot update location.");
     }
   }
 

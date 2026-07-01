@@ -2,7 +2,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_geofire/flutter_geofire.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -70,14 +69,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   goOnlineNow() {
-    //all drivers who are Available for new trip requests
-    Geofire.initialize("onlineDrivers");
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    Geofire.setLocation(
-      FirebaseAuth.instance.currentUser!.uid,
-      currentPositionOfDriver!.latitude,
-      currentPositionOfDriver!.longitude,
-    );
+    //publish the driver's location to onlineDrivers (plain RTDB, no geofire)
+    FirebaseDatabase.instance.ref("onlineDrivers/$uid").set({
+      "lat": currentPositionOfDriver!.latitude,
+      "lng": currentPositionOfDriver!.longitude,
+    });
 
     newTripRequestReference = FirebaseDatabase.instance
         .ref()
@@ -95,11 +93,12 @@ class _HomePageState extends State<HomePage> {
       currentPositionOfDriver = position;
 
       if (isDriverAvailable == true) {
-        Geofire.setLocation(
-          FirebaseAuth.instance.currentUser!.uid,
-          currentPositionOfDriver!.latitude,
-          currentPositionOfDriver!.longitude,
-        );
+        FirebaseDatabase.instance
+            .ref("onlineDrivers/${FirebaseAuth.instance.currentUser!.uid}")
+            .set({
+          "lat": currentPositionOfDriver!.latitude,
+          "lng": currentPositionOfDriver!.longitude,
+        });
       }
 
       LatLng positionLatLng = LatLng(position.latitude, position.longitude);
@@ -110,7 +109,9 @@ class _HomePageState extends State<HomePage> {
 
   goOfflineNow() {
     //stop sharing driver live location updates
-    Geofire.removeLocation(FirebaseAuth.instance.currentUser!.uid);
+    FirebaseDatabase.instance
+        .ref("onlineDrivers/${FirebaseAuth.instance.currentUser!.uid}")
+        .remove();
 
     //stop the location update stream
     positionStreamHomePage?.cancel();

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_geofire/flutter_geofire.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
@@ -56,6 +55,7 @@ class _HomePageState extends State<HomePage> {
   bool isDrawerOpened = true;
   String stateOfApp = "normal";
   bool nearbyOnlineDriversKeysLoaded = false;
+  StreamSubscription<DatabaseEvent>? onlineDriversSubscription;
   DatabaseReference? tripRequestRef;
   List<OnlineNearbyDrivers>? availableNearbyOnlineDriversList;
   StreamSubscription<DatabaseEvent>? tripStreamSubscription;
@@ -324,60 +324,52 @@ class _HomePageState extends State<HomePage> {
   }
 
   initializeGeoFireListener() {
-    Geofire.initialize("onlineDrivers");
+    // Nearby-drivers without the (crash-prone, unmaintained) flutter_geofire
+    // plugin: read the onlineDrivers node directly and filter by distance.
+    final onlineDriversRef = FirebaseDatabase.instance.ref("onlineDrivers");
 
-    // Guard against no drivers collection
-    Geofire.queryAtLocation(currentPositionOfUser?.latitude ?? 0.0,
-            currentPositionOfUser?.longitude ?? 0.0, 42)
-        ?.listen((driverEvent) {
-      if (driverEvent != null) {
-        var onlineDriverChild = driverEvent["callBack"];
+    onlineDriversSubscription?.cancel();
+    onlineDriversSubscription = onlineDriversRef.onValue.listen((event) {
+      const double searchRadiusKm = 42;
+      final List<OnlineNearbyDrivers> nearby = [];
 
-        switch (onlineDriverChild) {
-          case Geofire.onKeyEntered:
-            if (driverEvent["key"] != null &&
-                driverEvent["latitude"] != null &&
-                driverEvent["longitude"] != null) {
-              OnlineNearbyDrivers onlineNearbyDrivers = OnlineNearbyDrivers();
-              onlineNearbyDrivers.uidDriver = driverEvent["key"];
-              onlineNearbyDrivers.latDriver = driverEvent["latitude"];
-              onlineNearbyDrivers.lngDriver = driverEvent["longitude"];
-              ManageDriversMethods.nearbyOnlineDriversList
-                  .add(onlineNearbyDrivers);
+      final data = event.snapshot.value;
+      if (data is Map) {
+        final double? userLat = currentPositionOfUser?.latitude;
+        final double? userLng = currentPositionOfUser?.longitude;
 
-              if (nearbyOnlineDriversKeysLoaded == true) {
-                updateAvailableNearbyOnlineDriversOnMap();
-              }
+        data.forEach((key, value) {
+          if (value is Map && value["lat"] != null && value["lng"] != null) {
+            final double lat = (value["lat"] as num).toDouble();
+            final double lng = (value["lng"] as num).toDouble();
+
+            bool withinRange = true;
+            if (userLat != null && userLng != null) {
+              final double km = const Distance().as(
+                LengthUnit.Kilometer,
+                LatLng(userLat, userLng),
+                LatLng(lat, lng),
+              );
+              withinRange = km <= searchRadiusKm;
             }
-            break;
 
-          case Geofire.onKeyExited:
-            if (driverEvent["key"] != null) {
-              ManageDriversMethods.removeDriverFromList(driverEvent["key"]);
-              updateAvailableNearbyOnlineDriversOnMap();
+            if (withinRange) {
+              nearby.add(
+                OnlineNearbyDrivers()
+                  ..uidDriver = key.toString()
+                  ..latDriver = lat
+                  ..lngDriver = lng,
+              );
             }
-            break;
-
-          case Geofire.onKeyMoved:
-            if (driverEvent["key"] != null &&
-                driverEvent["latitude"] != null &&
-                driverEvent["longitude"] != null) {
-              OnlineNearbyDrivers onlineNearbyDrivers = OnlineNearbyDrivers();
-              onlineNearbyDrivers.uidDriver = driverEvent["key"];
-              onlineNearbyDrivers.latDriver = driverEvent["latitude"];
-              onlineNearbyDrivers.lngDriver = driverEvent["longitude"];
-              ManageDriversMethods.updateOnlineNearbyDriversLocation(
-                  onlineNearbyDrivers);
-              updateAvailableNearbyOnlineDriversOnMap();
-            }
-            break;
-
-          case Geofire.onGeoQueryReady:
-            nearbyOnlineDriversKeysLoaded = true;
-            updateAvailableNearbyOnlineDriversOnMap();
-            break;
-        }
+          }
+        });
       }
+
+      ManageDriversMethods.nearbyOnlineDriversList
+        ..clear()
+        ..addAll(nearby);
+      nearbyOnlineDriversKeysLoaded = true;
+      updateAvailableNearbyOnlineDriversOnMap();
     });
   }
 
@@ -485,7 +477,7 @@ class _HomePageState extends State<HomePage> {
 
       if (status == "accepted") {
         displayTripDetailsContainer();
-        Geofire.stopListener();
+        onlineDriversSubscription?.cancel();
 
         setState(() {
           driverMarkers.clear();
