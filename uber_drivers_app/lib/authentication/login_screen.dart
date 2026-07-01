@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen>
           if((snap.snapshot.value as Map)["blockStatus"] == "no")
           {
             //userName = (snap.snapshot.value as Map)["name"];
-            Navigator.push(context, MaterialPageRoute(builder: (c)=> Dashboard()));
+            Navigator.push(context, MaterialPageRoute(builder: (c)=> const Dashboard()));
           }
           else
           {
@@ -193,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen>
                   Navigator.push(context, MaterialPageRoute(builder: (c)=> const SignUpScreen()));
                 },
                 child: const Text(
-                  "Don\'t have an Account? Register Here",
+                  "Don't have an Account? Register Here",
                   style: TextStyle(
                     color: Colors.grey,
                   ),

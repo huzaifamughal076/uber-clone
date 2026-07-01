@@ -1,15 +1,12 @@
-import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:uber_drivers_app/methods/common_method.dart';
-import 'package:uber_drivers_app/methods/map_theme_methods.dart';
 import 'package:uber_drivers_app/models/trip_details.dart';
 import 'package:uber_drivers_app/widgets/loading_dialog.dart';
 import 'package:uber_drivers_app/widgets/payment_dialog.dart';
@@ -26,17 +23,13 @@ class NewTripPage extends StatefulWidget {
 }
 
 class _NewTripPageState extends State<NewTripPage> {
-  final Completer<GoogleMapController> googleMapCompleterController =
-      Completer<GoogleMapController>();
-  GoogleMapController? controllerGoogleMap;
-  MapThemeMethods themeMethods = MapThemeMethods();
-  double googleMapPaddingFromBottom = 0;
+  final MapController mapController = MapController();
   List<LatLng> coordinatesPolylineLatLngList = [];
   PolylinePoints polylinePoints = PolylinePoints();
-  Set<Marker> markersSet = Set<Marker>();
-  Set<Circle> circlesSet = Set<Circle>();
-  Set<Polyline> polyLinesSet = Set<Polyline>();
-  BitmapDescriptor? carMarkerIcon;
+  List<Marker> markersSet = [];
+  Marker? carMarker;
+  List<CircleMarker> circlesSet = [];
+  List<Polyline> polyLinesSet = [];
   bool directionRequested = false;
   String statusOfTrip = "accepted";
   String durationText = "";
@@ -44,19 +37,6 @@ class _NewTripPageState extends State<NewTripPage> {
   Color buttonColor = Colors.indigoAccent;
   String distanceText = "";
   CommonMethods commonMethods = CommonMethods();
-
-  makeMarker() {
-    if (carMarkerIcon == null) {
-      ImageConfiguration configuration =
-          createLocalImageConfiguration(context, size: Size(2, 2));
-
-      BitmapDescriptor.fromAssetImage(
-              configuration, "assets/images/tracking.png")
-          .then((valueIcon) {
-        carMarkerIcon = valueIcon;
-      });
-    }
-  }
 
   obtainDirectionAndDrawRoute(
       sourceLocationLatLng, destinationLocationLatLng) async {
@@ -87,108 +67,74 @@ class _NewTripPageState extends State<NewTripPage> {
       coordinatesPolylineLatLngList.clear();
 
       if (latLngPoints.isNotEmpty) {
-        latLngPoints.forEach((PointLatLng pointLatLng) {
+        for (var pointLatLng in latLngPoints) {
           coordinatesPolylineLatLngList
               .add(LatLng(pointLatLng.latitude, pointLatLng.longitude));
-        });
+        }
       } else {
         print("No polyline points found");
       }
 
-      // Draw polyline
-      polyLinesSet.clear();
-
+      // Draw polyline + markers + circles
       setState(() {
-        Polyline polyline = Polyline(
-            polylineId: const PolylineId("routeID"),
-            color: Colors.amber,
+        polyLinesSet = [
+          Polyline(
             points: coordinatesPolylineLatLngList,
-            jointType: JointType.round,
-            width: 5,
-            startCap: Cap.roundCap,
-            endCap: Cap.roundCap,
-            geodesic: true);
+            color: Colors.amber,
+            strokeWidth: 5,
+          ),
+        ];
 
-        polyLinesSet.add(polyline);
+        markersSet = [
+          Marker(
+            point: sourceLocationLatLng,
+            width: 40,
+            height: 40,
+            alignment: Alignment.topCenter,
+            child: const Icon(Icons.location_on, color: Colors.green, size: 40),
+          ),
+          Marker(
+            point: destinationLocationLatLng,
+            width: 40,
+            height: 40,
+            alignment: Alignment.topCenter,
+            child:
+                const Icon(Icons.location_on, color: Colors.orange, size: 40),
+          ),
+        ];
+
+        circlesSet = [
+          CircleMarker(
+            point: sourceLocationLatLng,
+            radius: 8,
+            color: Colors.green,
+            borderColor: Colors.orange,
+            borderStrokeWidth: 3,
+          ),
+          CircleMarker(
+            point: destinationLocationLatLng,
+            radius: 8,
+            color: Colors.orange,
+            borderColor: Colors.green,
+            borderStrokeWidth: 3,
+          ),
+        ];
       });
 
-      // Fit the polyline on google map
-      LatLngBounds boundsLatLng;
-
-      if (sourceLocationLatLng.latitude > destinationLocationLatLng.latitude &&
-          sourceLocationLatLng.longitude >
-              destinationLocationLatLng.longitude) {
-        boundsLatLng = LatLngBounds(
-          southwest: destinationLocationLatLng,
-          northeast: sourceLocationLatLng,
+      // Fit the route on the map
+      final pointsToFit = <LatLng>[
+        sourceLocationLatLng,
+        destinationLocationLatLng,
+        ...coordinatesPolylineLatLngList,
+      ];
+      try {
+        mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: LatLngBounds.fromPoints(pointsToFit),
+            padding: const EdgeInsets.all(60),
+          ),
         );
-      } else if (sourceLocationLatLng.longitude >
-          destinationLocationLatLng.longitude) {
-        boundsLatLng = LatLngBounds(
-          southwest: LatLng(sourceLocationLatLng.latitude,
-              destinationLocationLatLng.longitude),
-          northeast: LatLng(destinationLocationLatLng.latitude,
-              sourceLocationLatLng.longitude),
-        );
-      } else if (sourceLocationLatLng.latitude >
-          destinationLocationLatLng.latitude) {
-        boundsLatLng = LatLngBounds(
-          southwest: LatLng(destinationLocationLatLng.latitude,
-              sourceLocationLatLng.longitude),
-          northeast: LatLng(sourceLocationLatLng.latitude,
-              destinationLocationLatLng.longitude),
-        );
-      } else {
-        boundsLatLng = LatLngBounds(
-          southwest: sourceLocationLatLng,
-          northeast: destinationLocationLatLng,
-        );
-      }
-
-      controllerGoogleMap!
-          .animateCamera(CameraUpdate.newLatLngBounds(boundsLatLng, 72));
-
-      // Add marker
-      Marker sourceMarker = Marker(
-        markerId: const MarkerId('sourceID'),
-        position: sourceLocationLatLng,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-      );
-
-      Marker destinationMarker = Marker(
-        markerId: const MarkerId('destinationID'),
-        position: destinationLocationLatLng,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-      );
-
-      setState(() {
-        markersSet.add(sourceMarker);
-        markersSet.add(destinationMarker);
-      });
-
-      // Add circle
-      Circle sourceCircle = Circle(
-        circleId: const CircleId('sourceCircleID'),
-        strokeColor: Colors.orange,
-        strokeWidth: 4,
-        radius: 14,
-        center: sourceLocationLatLng,
-        fillColor: Colors.green,
-      );
-
-      Circle destinationCircle = Circle(
-        circleId: const CircleId('destinationCircleID'),
-        strokeColor: Colors.green,
-        strokeWidth: 4,
-        radius: 14,
-        center: destinationLocationLatLng,
-        fillColor: Colors.orange,
-      );
-
-      setState(() {
-        circlesSet.add(sourceCircle);
-        circlesSet.add(destinationCircle);
-      });
+      } catch (_) {}
     } catch (e, stackTrace) {
       // Catch and log any errors that occur
       print("Error in obtainDirectionAndDrawRoute: $e");
@@ -197,8 +143,6 @@ class _NewTripPageState extends State<NewTripPage> {
   }
 
   getLiveLocationUpdatesOfDriver() {
-    LatLng lastPositionLatLng = LatLng(0, 0);
-
     positionStreamNewTripPage =
         Geolocator.getPositionStream().listen((Position positionDriver) {
       driverCurrentPosition = positionDriver;
@@ -206,25 +150,20 @@ class _NewTripPageState extends State<NewTripPage> {
       LatLng driverCurrentPositionLatLng = LatLng(
           driverCurrentPosition!.latitude, driverCurrentPosition!.longitude);
 
-      Marker carMarker = Marker(
-        markerId: const MarkerId("carMarkerID"),
-        position: driverCurrentPositionLatLng,
-        icon: carMarkerIcon!,
-        infoWindow: const InfoWindow(title: "My Location"),
-      );
+      if (mounted) {
+        setState(() {
+          carMarker = Marker(
+            point: driverCurrentPositionLatLng,
+            width: 40,
+            height: 40,
+            child: Image.asset("assets/images/tracking.png"),
+          );
+        });
+      }
 
-      setState(() {
-        CameraPosition cameraPosition =
-            CameraPosition(target: driverCurrentPositionLatLng, zoom: 16);
-        controllerGoogleMap!
-            .animateCamera(CameraUpdate.newCameraPosition(cameraPosition));
-
-        markersSet
-            .removeWhere((element) => element.markerId.value == "carMarkerID");
-        markersSet.add(carMarker);
-      });
-
-      lastPositionLatLng = driverCurrentPositionLatLng;
+      try {
+        mapController.move(driverCurrentPositionLatLng, 16);
+      } catch (_) {}
 
       //update Trip Details Information
       updateTripDetailsInformation();
@@ -390,43 +329,55 @@ class _NewTripPageState extends State<NewTripPage> {
 
   @override
   Widget build(BuildContext context) {
-    makeMarker();
     return SafeArea(
       child: Scaffold(
         body: Stack(
           children: [
             SafeArea(
-              child: GoogleMap(
-                padding: EdgeInsets.only(bottom: googleMapPaddingFromBottom),
-                mapType: MapType.normal,
-                myLocationEnabled: true,
-                zoomControlsEnabled: false,
-                myLocationButtonEnabled: false,
-                markers: markersSet,
-                circles: circlesSet,
-                polylines: polyLinesSet,
-                initialCameraPosition: googlePlexInitialPosition,
-                onMapCreated: (GoogleMapController mapController) async {
-                  controllerGoogleMap = mapController;
-                  //themeMethods.updateMapTheme(controllerGoogleMap!);
-                  googleMapCompleterController.complete(controllerGoogleMap);
+              child: FlutterMap(
+                mapController: mapController,
+                options: MapOptions(
+                  initialCenter: driverCurrentPosition != null
+                      ? LatLng(driverCurrentPosition!.latitude,
+                          driverCurrentPosition!.longitude)
+                      : googlePlexInitialPosition,
+                  initialZoom: initialMapZoom,
+                  onMapReady: () async {
+                    if (driverCurrentPosition == null) return;
 
-                  setState(() {
-                    googleMapPaddingFromBottom = 262;
-                  });
+                    var driverCurrentLocationLatLng = LatLng(
+                        driverCurrentPosition!.latitude,
+                        driverCurrentPosition!.longitude);
 
-                  var driverCurrentLocationLatLng = LatLng(
-                      driverCurrentPosition!.latitude,
-                      driverCurrentPosition!.longitude);
+                    var userPickUpLocationLatLng =
+                        widget.newTripDetailsInfo!.pickUpLatLng;
 
-                  var userPickUpLocationLatLng =
-                      widget.newTripDetailsInfo!.pickUpLatLng;
+                    await obtainDirectionAndDrawRoute(
+                        driverCurrentLocationLatLng, userPickUpLocationLatLng);
 
-                  await obtainDirectionAndDrawRoute(
-                      driverCurrentLocationLatLng, userPickUpLocationLatLng);
-
-                  getLiveLocationUpdatesOfDriver();
-                },
+                    getLiveLocationUpdatesOfDriver();
+                  },
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.uber_drivers_app',
+                  ),
+                  PolylineLayer(polylines: polyLinesSet),
+                  CircleLayer(circles: circlesSet),
+                  MarkerLayer(
+                    markers: [
+                      ...markersSet,
+                      if (carMarker != null) carMarker!,
+                    ],
+                  ),
+                  const RichAttributionWidget(
+                    attributions: [
+                      TextSourceAttribution('OpenStreetMap contributors'),
+                    ],
+                  ),
+                ],
               ),
             ),
             Positioned(

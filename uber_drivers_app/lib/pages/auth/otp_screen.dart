@@ -9,7 +9,7 @@ import 'package:uber_drivers_app/widgets/blocked_screen.dart';
 
 class OTPScreen extends StatefulWidget {
   final String verificationId;
-  const OTPScreen({Key? key, required this.verificationId}) : super(key: key);
+  const OTPScreen({super.key, required this.verificationId});
 
   @override
   State<OTPScreen> createState() => _OTPScreenState();
@@ -210,7 +210,7 @@ class _OTPScreenState extends State<OTPScreen> {
     } else {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => DriverRegistration()),
+        MaterialPageRoute(builder: (context) => const DriverRegistration()),
         (route) => false,
       );
     }

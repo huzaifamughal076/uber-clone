@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uber_drivers_app/pages/driverRegistration/cninc_screen.dart';
-import 'package:uber_drivers_app/pages/driverRegistration/selfie_screen.dart';
 import 'package:uber_drivers_app/pages/driverRegistration/vehicle_registration/driver_car_image_screeen.dart';
 import 'package:uber_drivers_app/pages/driverRegistration/vehicle_registration/vehicle_baisc_info.dart';
 import 'package:uber_drivers_app/pages/driverRegistration/vehicle_registration/vehicle_registration_screen.dart';
 import 'package:uber_drivers_app/providers/registration_provider.dart';
 
 class VehicleInfoScreen extends StatefulWidget {
+  const VehicleInfoScreen({super.key});
+
   @override
   _VehicleInfoScreenState createState() => _VehicleInfoScreenState();
 }
@@ -172,16 +172,19 @@ class _VehicleInfoScreenState extends State<VehicleInfoScreen> {
     required bool isCompleted,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w400),
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w400),
+        ),
+        subtitle: Text(subtitle),
+        trailing: isCompleted
+            ? const Icon(Icons.check_circle, color: Colors.green)
+            : const Icon(Icons.arrow_forward_ios),
+        onTap: onTap,
       ),
-      subtitle: Text(subtitle),
-      trailing: isCompleted
-          ? const Icon(Icons.check_circle, color: Colors.green)
-          : const Icon(Icons.arrow_forward_ios),
-      onTap: onTap,
     );
   }
 }

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../providers/trips_provider.dart';
 
 class TripsHistoryPage extends StatefulWidget {
+  const TripsHistoryPage({super.key});
+
   @override
   _TripsHistoryPageState createState() => _TripsHistoryPageState();
 }

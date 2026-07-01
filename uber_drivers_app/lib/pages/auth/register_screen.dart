@@ -1,5 +1,6 @@
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:uber_drivers_app/methods/common_method.dart';
 import 'package:uber_drivers_app/pages/dashboard.dart';
@@ -17,6 +18,11 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController phoneController = TextEditingController();
+  CommonMethods commonMethods = CommonMethods();
+
+  static const Color _primary = Color(0xFF111111);
+  static const double _radius = 14;
+  static const double _controlHeight = 56;
 
   Country selectedCountry = Country(
     phoneCode: '92',
@@ -37,302 +43,325 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  CommonMethods commonMethods = CommonMethods();
-
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthenticationProvider>(context);
-    return SafeArea(
-      child: Scaffold(
-        body: SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 24),
+              _buildHeader(),
+              const SizedBox(height: 36),
+              const Text(
+                "Mobile Number",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildPhoneField(),
+              const SizedBox(height: 20),
+              _buildContinueButton(authProvider),
+              const SizedBox(height: 24),
+              _buildOrDivider(),
+              const SizedBox(height: 24),
+              _socialButton(
+                onPressed:
+                    authProvider.isLoading ? null : _handleGoogleSignIn,
+                loading: authProvider.isGoogleSigInLoading,
+                icon: _googleLogo(),
+                label: "Continue with Google",
+              ),
+              const SizedBox(height: 14),
+              _socialButton(
+                onPressed: () {},
+                loading: false,
+                icon: const Icon(Icons.apple, color: _primary, size: 24),
+                label: "Continue with Apple",
+              ),
+              const SizedBox(height: 28),
+              Text(
+                "By proceeding, you consent to receive calls, WhatsApp or "
+                "SMS messages, including by automated means, to the number "
+                "provided.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Center(
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: _primary,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.directions_car_filled_rounded,
+              color: Colors.white,
+              size: 38,
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            "Driver Login",
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              color: _primary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Sign in to start accepting rides",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhoneField() {
+    final bool isComplete = phoneController.text.length == 10;
+    return TextFormField(
+      controller: phoneController,
+      maxLength: 10,
+      textInputAction: TextInputAction.done,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        counterText: '',
+        hintText: '313 7426256',
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_radius),
+          borderSide: const BorderSide(color: _primary, width: 1.5),
+        ),
+        prefixIcon: InkWell(
+          onTap: _openCountryPicker,
+          borderRadius: BorderRadius.circular(_radius),
           child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  "Enter Your Mobile Number",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(
-                  height: 8,
-                ),
-                TextFormField(
-                  controller: phoneController,
-                  maxLength: 10,
-                  textInputAction: TextInputAction.done,
-                  keyboardType: TextInputType.number,
+                Text(selectedCountry.flagEmoji,
+                    style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 6),
+                Text(
+                  '+${selectedCountry.phoneCode}',
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      phoneController.text = value;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    fillColor: Colors.grey,
-                    counterText: '',
-                    hintText: '313 7426256',
-                    hintStyle: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 18,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5),
-                      //borderSide: BorderSide(color: Colors.black),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5),
-                      //borderSide: BorderSide(color: Colors.black),
-                    ),
-                    prefixIcon: Container(
-                      padding: const EdgeInsets.fromLTRB(8.0, 12.0, 8.0, 12.0),
-                      child: InkWell(
-                        onTap: () {
-                          showCountryPicker(
-                            context: context,
-                            countryListTheme: const CountryListThemeData(
-                                borderRadius: BorderRadius.zero,
-                                bottomSheetHeight: 400),
-                            onSelect: (value) {
-                              setState(() {
-                                selectedCountry = value;
-                              });
-                            },
-                          );
-                        },
-                        child: Text(
-                          ' +${selectedCountry.phoneCode}',
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                    suffixIcon: phoneController.text.length > 9
-                        ? Container(
-                            height: 20,
-                            width: 20,
-                            margin: const EdgeInsets.all(10.0),
-                            decoration: const BoxDecoration(
-                                shape: BoxShape.circle, color: Colors.black),
-                            child: const Icon(
-                              Icons.done,
-                              size: 20,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
-                  ),
+                      fontSize: 16, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(
-                  height: 15,
-                ),
-                SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  height: MediaQuery.of(context).size.height * 0.07,
-                  child: ElevatedButton(
-                    onPressed:
-                        sendPhoneNumber, // Correctly call the sendPhoneNumber function
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                    child: authProvider.isLoading
-                        ? const CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          )
-                        : const Text(
-                            "Continue",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(
-                  height: 15,
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Divider(
-                        indent: 0,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(
-                        "Or",
-                        style: TextStyle(
-                          color: Colors.grey.shade400,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Divider(
-                        color: Colors.grey.shade400,
-                        endIndent: 0,
-                      ),
-                    )
-                  ],
-                ),
-                const SizedBox(
-                  height: 15,
-                ),
-                SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  height: MediaQuery.of(context).size.height * 0.07,
-                  child: ElevatedButton(
-                    onPressed: authProvider.isLoading
-                        ? null
-                        : () async {
-                            if (!authProvider.isLoading) {
-                              await authProvider.signInWithGoogle(
-                                context,
-                                () async {
-                                  bool userExists =
-                                      await authProvider.checkUserExistById();
-                                  bool userExistsInDatabase =
-                                      await authProvider.checkUserExistByEmail(
-                                    authProvider
-                                        .firebaseAuth.currentUser!.email!
-                                        .toString(),
-                                  );
-                                  print("User Exists: $userExists");
-                                  print(
-                                      "User Exist in datbase response $userExistsInDatabase");
-
-                                  if (userExists) {
-                                    if (userExistsInDatabase) {
-                                      // Check if the driver is blocked
-                                      bool isBlocked = await authProvider
-                                          .checkIfDriverIsBlocked();
-
-                                      if (isBlocked) {
-                                        // Navigate to Block Screen if blocked
-                                        Navigator.pushReplacement(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (context) =>
-                                                  const BlockedScreen()), // Replace with your actual Block Screen
-                                        );
-                                      } else {
-                                        // Get user data from database if not blocked
-                                        await authProvider
-                                            .getUserDataFromFirebaseDatabase();
-
-                                        // Check if driver's profile is complete
-                                        bool isDriverComplete =
-                                            await authProvider
-                                                .checkDriverFieldsFilled();
-
-                                        if (isDriverComplete) {
-                                          navigate(isSingedIn: true);
-                                        } else {
-                                          navigate(isSingedIn: false);
-                                          commonMethods.displaySnackBar(
-                                              "Fill your missing information!",
-                                              context);
-                                        }
-                                      }
-                                    } else {
-                                      // Navigate to user registration if user doesn't exist in database
-                                      navigate(isSingedIn: false);
-                                    }
-                                  } else {
-                                    // Navigate to user information screen if user doesn't exist
-                                    navigate(isSingedIn: false);
-                                  }
-                                },
-                              );
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade400,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                    child: authProvider.isGoogleSigInLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.black),
-                            ),
-                          )
-                        : const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.airplanemode_active,
-                                color: Colors.black,
-                              ),
-                              const SizedBox(width: 5),
-                              const Text(
-                                "Continue with Google",
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-                const SizedBox(
-                  height: 15,
-                ),
-                SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  height: MediaQuery.of(context).size.height * 0.07,
-                  child: ElevatedButton.icon(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade400,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                    label: const Text(
-                      "Continue with Apple",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 14,
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.apple,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-                const SizedBox(
-                  height: 15,
-                ),
-                const Text(
-                  "By proceeding, you consent to get calls, whatsApp or SMS messages,including by automated means, from Uber and its affiliates to the number provided.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey,
-                  ),
-                ),
+                const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                const SizedBox(width: 8),
+                Container(width: 1, height: 24, color: Colors.grey.shade300),
               ],
             ),
           ),
         ),
+        suffixIcon: isComplete
+            ? Container(
+                height: 22,
+                width: 22,
+                margin: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                    shape: BoxShape.circle, color: Color(0xFF1DB954)),
+                child: const Icon(Icons.check, size: 16, color: Colors.white),
+              )
+            : null,
       ),
+    );
+  }
+
+  Widget _buildContinueButton(AuthenticationProvider authProvider) {
+    return SizedBox(
+      height: _controlHeight,
+      child: ElevatedButton(
+        onPressed: authProvider.isLoading ? null : sendPhoneNumber,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _primary,
+          disabledBackgroundColor: Colors.grey.shade300,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_radius),
+          ),
+        ),
+        child: authProvider.isLoading
+            ? const SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            : const Text(
+                "Continue",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildOrDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            "or",
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+          ),
+        ),
+        Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+      ],
+    );
+  }
+
+  Widget _socialButton({
+    required VoidCallback? onPressed,
+    required bool loading,
+    required Widget icon,
+    required String label,
+  }) {
+    return SizedBox(
+      height: _controlHeight,
+      child: OutlinedButton(
+        onPressed: loading ? null : onPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          side: BorderSide(color: Colors.grey.shade300),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_radius),
+          ),
+        ),
+        child: loading
+            ? const SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: _primary),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  icon,
+                  const SizedBox(width: 10),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: _primary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _googleLogo() {
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      child: const Text(
+        'G',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF4285F4),
+        ),
+      ),
+    );
+  }
+
+  void _openCountryPicker() {
+    showCountryPicker(
+      context: context,
+      showPhoneCode: true,
+      countryListTheme: const CountryListThemeData(
+        bottomSheetHeight: 500,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      onSelect: (value) => setState(() => selectedCountry = value),
+    );
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    final authProvider =
+        Provider.of<AuthenticationProvider>(context, listen: false);
+    if (authProvider.isLoading) return;
+
+    await authProvider.signInWithGoogle(
+      context,
+      () async {
+        bool userExists = await authProvider.checkUserExistById();
+        bool userExistsInDatabase = await authProvider.checkUserExistByEmail(
+          authProvider.firebaseAuth.currentUser!.email!.toString(),
+        );
+
+        if (userExists && userExistsInDatabase) {
+          bool isBlocked = await authProvider.checkIfDriverIsBlocked();
+          if (isBlocked) {
+            if (!mounted) return;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const BlockedScreen()),
+            );
+          } else {
+            await authProvider.getUserDataFromFirebaseDatabase();
+            bool isDriverComplete = await authProvider.checkDriverFieldsFilled();
+            if (isDriverComplete) {
+              navigate(isSingedIn: true);
+            } else {
+              navigate(isSingedIn: false);
+              if (!mounted) return;
+              commonMethods.displaySnackBar(
+                  "Fill your missing information!", context);
+            }
+          }
+        } else {
+          // New driver → go to registration
+          navigate(isSingedIn: false);
+        }
+      },
     );
   }
 
@@ -345,7 +374,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (phoneNumber.isEmpty ||
         phoneNumber.length != 10 ||
         !RegExp(r'^[3][0-9]{9}$').hasMatch(phoneNumber)) {
-      // Show error if the phone number is invalid
       commonMethods.displaySnackBar(
         "Please enter a valid mobile number.",
         context,
@@ -371,7 +399,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           (route) => false);
     } else {
       Navigator.push(context,
-          MaterialPageRoute(builder: (context) => DriverRegistration()));
+          MaterialPageRoute(builder: (context) => const DriverRegistration()));
     }
   }
 }

@@ -14,7 +14,7 @@ class NotificationDialog extends StatefulWidget {
   final String? fareAmount;
   final String? bidAmount;
 
-  NotificationDialog({
+  const NotificationDialog({
     super.key,
     this.tripDetailsInfo,
     this.fareAmount,

@@ -1,6 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uber_drivers_app/widgets/app_image.dart';
 import 'package:uber_drivers_app/pages/profileUpdation/driver_main_info.dart';
 import 'package:uber_drivers_app/providers/auth_provider.dart';
 import 'package:uber_drivers_app/providers/registration_provider.dart';
@@ -61,22 +61,25 @@ class _ProfilePageState extends State<ProfilePage> {
                             width: 100.0,
                             height: 70.0,
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                            child: CachedNetworkImage(
-                              imageUrl: driverPhoto,
-                              imageBuilder: (context, imageProvider) =>
-                                  Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  image: DecorationImage(
-                                    image: imageProvider,
-                                    fit: BoxFit.cover,
+                            child: Builder(
+                              builder: (context) {
+                                final provider =
+                                    imageProviderFromString(driverPhoto);
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.grey.shade200,
+                                    image: provider != null
+                                        ? DecorationImage(
+                                            image: provider, fit: BoxFit.cover)
+                                        : null,
                                   ),
-                                ),
-                              ),
-                              placeholder: (context, url) =>
-                                  CircularProgressIndicator(),
-                              errorWidget: (context, url, error) =>
-                                  Icon(Icons.error),
+                                  child: provider == null
+                                      ? const Icon(Icons.person,
+                                          color: Colors.grey)
+                                      : null,
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -191,7 +194,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   await Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => DriverMainInfo()));
+                          builder: (context) => const DriverMainInfo()));
                 },
                 child: const ListTile(
                   leading: Icon(Icons.verified_user),

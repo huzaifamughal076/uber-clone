@@ -205,6 +205,10 @@ class AuthenticationProvider extends ChangeNotifier {
         // Cast the snapshot value to a Map
         Map driverData = snapshot.value as Map;
 
+        // vehicleInfo may be absent for a partially-registered driver.
+        final Map vehicleInfoMap =
+            (driverData["vehicleInfo"] is Map) ? driverData["vehicleInfo"] : {};
+
         // Retrieve individual values from the map and create the Driver object
         _driverModel = Driver(
           id: driverData["id"] ?? '',
@@ -228,19 +232,17 @@ class AuthenticationProvider extends ChangeNotifier {
           driverRattings: driverData["driverRattings"] ?? '',
           earnings: driverData["earnings"] ?? '',
           vehicleInfo: VehicleInfo(
-            brand: driverData["vehicleInfo"]?["brand"] ?? '',
-            color: driverData["vehicleInfo"]?["color"] ?? '',
-            productionYear: driverData["vehicleInfo"]?["productionYear"] ?? '',
-            vehiclePicture: driverData["vehicleInfo"]?["vehiclePicture"] ?? '',
-            type: driverData["vehicleInfo"]?["type"] ?? '',
+            brand: vehicleInfoMap["brand"] ?? '',
+            color: vehicleInfoMap["color"] ?? '',
+            productionYear: vehicleInfoMap["productionYear"] ?? '',
+            vehiclePicture: vehicleInfoMap["vehiclePicture"] ?? '',
+            type: vehicleInfoMap["type"] ?? '',
             registrationPlateNumber:
-                driverData["vehicleInfo"]?["registrationPlateNumber"] ?? '',
-            registrationCertificateFrontImage: driverData["vehicleInfo"]
-                    ?["registrationCertificateFrontImage"] ??
-                '',
-            registrationCertificateBackImage: driverData["vehicleInfo"]
-                    ?["registrationCertificateBackImage"] ??
-                '',
+                vehicleInfoMap["registrationPlateNumber"] ?? '',
+            registrationCertificateFrontImage:
+                vehicleInfoMap["registrationCertificateFrontImage"] ?? '',
+            registrationCertificateBackImage:
+                vehicleInfoMap["registrationCertificateBackImage"] ?? '',
           ),
         );
 

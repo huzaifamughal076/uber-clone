@@ -257,7 +257,7 @@ class _VehicleBaiscInfoUpdateScreenState
                                 : Colors.grey,
                       ),
                       child: registrationProvider.isLoading
-                          ? CircularProgressIndicator(
+                          ? const CircularProgressIndicator(
                               color: Colors.black,
                             )
                           : const Text('Update',

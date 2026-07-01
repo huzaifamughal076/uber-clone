@@ -24,6 +24,7 @@ import '../methods/manage_drivers_methods.dart';
 import '../methods/push_notification_service.dart';
 import '../models/direction_details.dart';
 import '../models/online_nearby_drivers.dart';
+import '../widgets/app_image.dart';
 import '../widgets/bid_dialog.dart';
 import '../widgets/info_dialog.dart';
 import '../widgets/loading_dialog.dart';
@@ -1608,27 +1609,33 @@ class _HomePageState extends State<HomePage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           ClipOval(
-                            child: photoDriver == ''
-                                ? Image.asset(
+                            child: Builder(
+                              builder: (context) {
+                                final provider =
+                                    imageProviderFromString(photoDriver);
+                                if (provider == null) {
+                                  return Image.asset(
                                     "assets/images/avatarman.png",
                                     width: 60,
                                     height: 60,
                                     fit: BoxFit.cover,
-                                  )
-                                : Image.network(
-                                    photoDriver,
+                                  );
+                                }
+                                return Image(
+                                  image: provider,
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Image.asset(
+                                    "assets/images/avatarman.png",
                                     width: 60,
                                     height: 60,
                                     fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            Image.asset(
-                                      "assets/images/avatarman.png",
-                                      width: 60,
-                                      height: 60,
-                                      fit: BoxFit.cover,
-                                    ),
                                   ),
+                                );
+                              },
+                            ),
                           ),
                           const SizedBox(
                             width: 8,

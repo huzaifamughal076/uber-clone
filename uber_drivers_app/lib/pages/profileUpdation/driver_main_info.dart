@@ -8,6 +8,8 @@ import 'package:uber_drivers_app/pages/profileUpdation/vehicle_info_update_scree
 import 'package:uber_drivers_app/providers/registration_provider.dart';
 
 class DriverMainInfo extends StatefulWidget {
+  const DriverMainInfo({super.key});
+
   @override
   _DriverMainInfoState createState() => _DriverMainInfoState();
 }
@@ -172,14 +174,17 @@ class _DriverMainInfoState extends State<DriverMainInfo> {
     required String subtitle,
     required Function() onTap,
   }) {
-    return ListTile(
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w400),
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w400),
+        ),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.arrow_forward_ios),
+        onTap: onTap,
       ),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.arrow_forward_ios),
-      onTap: onTap,
     );
   }
 }

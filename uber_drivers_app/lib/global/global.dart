@@ -1,16 +1,14 @@
 import 'dart:async';
 
-import 'package:assets_audio_player/assets_audio_player.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 
 String userName = '';
 String userEmail = '';
-const String googleMapKey = "";
-const CameraPosition  googlePlexInitialPosition = CameraPosition(
-  target: LatLng(37.42796133580664, -122.085749655962),
-  zoom: 14.4746,
-);
+const LatLng googlePlexInitialPosition =
+    LatLng(37.42796133580664, -122.085749655962);
+const double initialMapZoom = 14.4746;
 
 StreamSubscription<Position>? positionStreamHomePage;
 StreamSubscription<Position>? positionStreamNewTripPage;
@@ -18,7 +16,7 @@ StreamSubscription<Position>? positionStreamNewTripPage;
 
 int driverTripRequestTimeout = 40;
 
-final audioPlayer = AssetsAudioPlayer();
+final audioPlayer = AudioPlayer();
 
 Position? driverCurrentPosition;
 

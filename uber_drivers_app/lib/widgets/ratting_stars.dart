@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class RatingStars extends StatelessWidget {
   final String ratting;
 
-  RatingStars({required this.ratting});
+  const RatingStars({super.key, required this.ratting});
 
   @override
   Widget build(BuildContext context) {

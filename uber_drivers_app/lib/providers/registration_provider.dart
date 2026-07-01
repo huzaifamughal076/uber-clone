@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,14 +12,12 @@ import 'package:uber_drivers_app/methods/common_method.dart';
 import 'package:uber_drivers_app/methods/image_picker_service.dart';
 import 'package:uber_drivers_app/models/driver.dart';
 import 'package:uber_drivers_app/models/vehicleInfo.dart';
-import 'package:uber_drivers_app/pages/profile/profile_page.dart';
 import 'package:uber_drivers_app/providers/auth_provider.dart';
 import 'package:http/http.dart' as http;
 
 class RegistrationProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseDatabase _database = FirebaseDatabase.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   bool _isLoading = false;
   bool _isFetchLoading = false;
@@ -42,7 +40,7 @@ class RegistrationProvider extends ChangeNotifier {
   XFile? _vehicleRegistrationBackImage;
   bool _isDataFetched = false;
   bool get isDataFetched => _isDataFetched;
-  bool _currentDriverInfo = false;
+  final bool _currentDriverInfo = false;
   double _driverEarnings = 0.0;
   get driverEarnings => _driverEarnings;
 
@@ -280,22 +278,15 @@ class RegistrationProvider extends ChangeNotifier {
     checkCNICFormValidity();
   }
 
-  Future<String> uploadImageToFirebaseStorage(
-      XFile? photo, String? path) async {
+  // Firebase Storage requires the paid Blaze plan, so instead of uploading to a
+  // bucket we base64-encode the image and store the string directly in the
+  // Realtime Database. Use AppImage / imageProviderFromString to render it.
+  Future<String> uploadImageToFirebaseStorage(XFile? photo, String? path) async {
     if (photo == null) {
       throw Exception("No image selected");
     }
-    String imageIDName = DateTime.now().millisecondsSinceEpoch.toString();
-    final file = File(_profilePhoto!.path);
-    final reference = _storage
-        .ref()
-        .child(_auth.currentUser!.uid)
-        .child(path!)
-        .child(imageIDName);
-    final uploadTask = reference.putFile(file);
-    final snapshot = await uploadTask.whenComplete(() => {});
-    final downloadUrl = await snapshot.ref.getDownloadURL();
-    return downloadUrl;
+    final bytes = await File(photo.path).readAsBytes();
+    return base64Encode(bytes);
   }
 
   Future<void> saveUserData(BuildContext context) async {

@@ -9,6 +9,28 @@ rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
+
+// Inject a namespace for legacy plugins that still declare their package only in
+// AndroidManifest.xml (required by AGP 8+). Registered before the
+// evaluationDependsOn(":app") block below so the hook is added before any
+// subproject is force-evaluated.
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            def androidExtension = project.extensions.findByName("android")
+            if (androidExtension != null && androidExtension.namespace == null) {
+                def manifestFile = androidExtension.sourceSets.main.manifest.srcFile
+                if (manifestFile.exists()) {
+                    def manifest = new XmlSlurper().parse(manifestFile)
+                    def packageName = manifest.@package.text()
+                    if (packageName) {
+                        androidExtension.namespace = packageName
+                    }
+                }
+            }
+        }
+    }
+}
 subprojects {
     project.evaluationDependsOn(":app")
 }

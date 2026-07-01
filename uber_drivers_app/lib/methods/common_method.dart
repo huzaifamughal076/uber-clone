@@ -4,9 +4,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_geofire/flutter_geofire.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
-import 'package:uber_drivers_app/const.dart';
 import '../global/global.dart';
 import '../models/direction_details.dart';
 
@@ -63,7 +62,10 @@ class CommonMethods {
   }
 
   static sendRequestToAPI(String apiUrl) async {
-    http.Response responseFromAPI = await http.get(Uri.parse(apiUrl));
+    http.Response responseFromAPI = await http.get(
+      Uri.parse(apiUrl),
+      headers: const {"User-Agent": "uber_drivers_app/1.0 (Flutter)"},
+    );
 
     try {
       if (responseFromAPI.statusCode == 200) {
@@ -78,32 +80,49 @@ class CommonMethods {
     }
   }
 
-  ///Directions API
+  ///Directions via the free OSRM demo server (lon,lat order; returns an
+  ///encoded polyline plus distance in metres and duration in seconds).
   static Future<DirectionDetails?> getDirectionDetailsFromAPI(
       LatLng source, LatLng destination) async {
     String urlDirectionsAPI =
-        "https://maps.googleapis.com/maps/api/directions/json?destination=${destination.latitude},${destination.longitude}&origin=${source.latitude},${source.longitude}&mode=driving&key=$googleMapKey";
+        "https://router.project-osrm.org/route/v1/driving/"
+        "${source.longitude},${source.latitude};"
+        "${destination.longitude},${destination.latitude}"
+        "?overview=full&geometries=polyline";
 
     var responseFromDirectionsAPI = await sendRequestToAPI(urlDirectionsAPI);
-    print("This is response from direction api $responseFromDirectionsAPI");
+
     if (responseFromDirectionsAPI == "error") {
       return null;
     }
 
+    if (responseFromDirectionsAPI["routes"] == null ||
+        (responseFromDirectionsAPI["routes"] as List).isEmpty) {
+      return null;
+    }
+
     DirectionDetails detailsModel = DirectionDetails();
+    try {
+      var route = responseFromDirectionsAPI["routes"][0];
 
-    detailsModel.distanceTextString =
-        responseFromDirectionsAPI["routes"][0]["legs"][0]["distance"]["text"];
-    detailsModel.distanceValueDigits =
-        responseFromDirectionsAPI["routes"][0]["legs"][0]["distance"]["value"];
+      double distanceMeters = (route["distance"] as num).toDouble();
+      double durationSeconds = (route["duration"] as num).toDouble();
 
-    detailsModel.durationTextString =
-        responseFromDirectionsAPI["routes"][0]["legs"][0]["duration"]["text"];
-    detailsModel.durationValueDigits =
-        responseFromDirectionsAPI["routes"][0]["legs"][0]["duration"]["value"];
+      detailsModel.distanceValueDigits = distanceMeters.round();
+      detailsModel.durationValueDigits = durationSeconds.round();
+      detailsModel.encodedPoints = route["geometry"];
 
-    detailsModel.encodedPoints =
-        responseFromDirectionsAPI["routes"][0]["overview_polyline"]["points"];
+      detailsModel.distanceTextString =
+          "${(distanceMeters / 1000).toStringAsFixed(1)} km";
+
+      int totalMinutes = (durationSeconds / 60).round();
+      int hours = totalMinutes ~/ 60;
+      int minutes = totalMinutes % 60;
+      detailsModel.durationTextString =
+          hours > 0 ? "$hours hours $minutes mins" : "$minutes mins";
+    } catch (e) {
+      return null;
+    }
 
     return detailsModel;
   }

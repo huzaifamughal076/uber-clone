@@ -21,7 +21,7 @@ class _SelfieWithCnincUpdateScreenState
     extends State<SelfieWithCnincUpdateScreen> {
   @override
   Widget build(BuildContext context) {
-    final _formKey = GlobalKey<FormState>();
+    final formKey = GlobalKey<FormState>();
     return Consumer<RegistrationProvider>(
       builder: (context, registrationProvider, child) => Scaffold(
         appBar: AppBar(

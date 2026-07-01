@@ -5,6 +5,8 @@ import '../../providers/trips_provider.dart';
 import 'trip_history_page.dart';
 
 class TripsPage extends StatefulWidget {
+  const TripsPage({super.key});
+
   @override
   _TripsPageState createState() => _TripsPageState();
 }
@@ -68,7 +70,7 @@ class _TripsPageState extends State<TripsPage> {
                 GestureDetector(
                   onTap: () {
                     Navigator.push(context,
-                        MaterialPageRoute(builder: (c) => TripsHistoryPage()));
+                        MaterialPageRoute(builder: (c) => const TripsHistoryPage()));
                   },
                   child: Center(
                     child: Container(

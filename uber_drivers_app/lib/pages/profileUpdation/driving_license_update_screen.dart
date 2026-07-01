@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -20,7 +19,7 @@ class _DrivingLicenseUpdateScreenState
     extends State<DrivingLicenseUpdateScreen> {
   @override
   Widget build(BuildContext context) {
-    final _formKey = GlobalKey<FormState>();
+    final formKey = GlobalKey<FormState>();
     return Consumer<RegistrationProvider>(
       builder: (context, registrationProvider, child) => Scaffold(
         appBar: AppBar(
@@ -39,7 +38,7 @@ class _DrivingLicenseUpdateScreenState
           padding: const EdgeInsets.all(16.0),
           child: SingleChildScrollView(
             child: Form(
-              key: _formKey,
+              key: formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -112,7 +111,7 @@ class _DrivingLicenseUpdateScreenState
                                   .isFormValidDrivingLicnese &&
                               registrationProvider.isLoading == false
                           ? () async {
-                              if (_formKey.currentState?.validate() == true) {
+                              if (formKey.currentState?.validate() == true) {
                                 try {
                                   await registrationProvider
                                       .updatedriverLicenseInfo(context);

@@ -1,20 +1,16 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_geofire/flutter_geofire.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uber_drivers_app/global/global.dart';
 import 'package:uber_drivers_app/providers/registration_provider.dart';
 
-import '../../methods/map_theme_methods.dart';
 import '../../pushNotifications/push_notification.dart';
 
 class HomePage extends StatefulWidget {
@@ -25,29 +21,33 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final Completer<GoogleMapController> googleMapCompleterController =
-      Completer<GoogleMapController>();
-  GoogleMapController? controllerGoogleMap;
+  final MapController mapController = MapController();
   Position? currentPositionOfDriver;
   Color colorToShow = Colors.green;
   String titleToShow = "GO ONLINE NOW";
   bool isDriverAvailable = false;
   DatabaseReference? newTripRequestReference;
-  MapThemeMethods themeMethods = MapThemeMethods();
 
   getCurrentLiveLocationOfDriver() async {
     Position positionOfUser = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.bestForNavigation);
+        locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.bestForNavigation));
     currentPositionOfDriver = positionOfUser;
     driverCurrentPosition = currentPositionOfDriver;
 
     LatLng positionOfUserInLatLng = LatLng(
         currentPositionOfDriver!.latitude, currentPositionOfDriver!.longitude);
 
-    CameraPosition cameraPosition =
-        CameraPosition(target: positionOfUserInLatLng, zoom: 15);
-    controllerGoogleMap!
-        .animateCamera(CameraUpdate.newCameraPosition(cameraPosition));
+    mapController.move(positionOfUserInLatLng, 15);
+    if (mounted) setState(() {}); // refresh driver-location marker
+
+    // If the driver was left "online" (persisted), re-establish the online
+    // presence now that we have a live location, so location sharing + the
+    // newTripStatus listener are actually active this session.
+    if (isDriverAvailable && newTripRequestReference == null) {
+      goOnlineNow();
+      setAndGetLocationUpdates();
+    }
   }
 
   _loadDriverStatus() async {
@@ -103,8 +103,8 @@ class _HomePageState extends State<HomePage> {
       }
 
       LatLng positionLatLng = LatLng(position.latitude, position.longitude);
-      controllerGoogleMap!
-          .animateCamera(CameraUpdate.newLatLng(positionLatLng));
+      mapController.move(positionLatLng, mapController.camera.zoom);
+      if (mounted) setState(() {}); // refresh driver-location marker
     });
   }
 
@@ -112,7 +112,17 @@ class _HomePageState extends State<HomePage> {
     //stop sharing driver live location updates
     Geofire.removeLocation(FirebaseAuth.instance.currentUser!.uid);
 
-    //stop listening to the newTripStatus
+    //stop the location update stream
+    positionStreamHomePage?.cancel();
+    positionStreamHomePage = null;
+
+    //stop listening to the newTripStatus (reconstruct the ref if this session
+    //never called goOnlineNow, e.g. after a restart while persisted online)
+    newTripRequestReference ??= FirebaseDatabase.instance
+        .ref()
+        .child("drivers")
+        .child(FirebaseAuth.instance.currentUser!.uid)
+        .child("newTripStatus");
     newTripRequestReference!.onDisconnect();
     newTripRequestReference!.remove();
     newTripRequestReference = null;
@@ -141,25 +151,52 @@ class _HomePageState extends State<HomePage> {
       child: Scaffold(
         body: Stack(
           children: [
-            ///google map
-            GoogleMap(
-              padding: const EdgeInsets.only(top: 136),
-              mapType: MapType.normal,
-              myLocationEnabled: true,
-              zoomControlsEnabled: false,
-              myLocationButtonEnabled: false,
-              initialCameraPosition: googlePlexInitialPosition,
-              onMapCreated: (GoogleMapController mapController) {
-                controllerGoogleMap = mapController;
-                //themeMethods.updateMapTheme(controllerGoogleMap!);
-
-                googleMapCompleterController.complete(controllerGoogleMap);
-
-                getCurrentLiveLocationOfDriver();
-              },
+            ///OpenStreetMap (flutter_map)
+            FlutterMap(
+              mapController: mapController,
+              options: MapOptions(
+                initialCenter: googlePlexInitialPosition,
+                initialZoom: initialMapZoom,
+                onMapReady: () {
+                  getCurrentLiveLocationOfDriver();
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.uber_drivers_app',
+                ),
+                if (currentPositionOfDriver != null)
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: LatLng(currentPositionOfDriver!.latitude,
+                            currentPositionOfDriver!.longitude),
+                        width: 22,
+                        height: 22,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                const RichAttributionWidget(
+                  attributions: [
+                    TextSourceAttribution('OpenStreetMap contributors'),
+                  ],
+                ),
+              ],
             ),
 
-            Container(
+            const SizedBox(
               height: 136,
               width: double.infinity,
               //color: Colors.black12,

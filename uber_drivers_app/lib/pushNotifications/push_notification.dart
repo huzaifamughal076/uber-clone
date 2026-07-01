@@ -1,13 +1,13 @@
 import 'dart:developer';
 
-import 'package:assets_audio_player/assets_audio_player.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_notification_channel/flutter_notification_channel.dart';
 import 'package:flutter_notification_channel/notification_importance.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import '../global/global.dart';
 import '../main.dart';
 import '../models/trip_details.dart';
@@ -93,11 +93,7 @@ class PushNotificationSystem {
           // Log the received data for debugging
           log("Trip Data: $data");
 
-          audioPlayer.open(
-            Audio("assets/audio/alert-sound.mp3"),
-          );
-
-          audioPlayer.play();
+          audioPlayer.play(AssetSource("audio/alert-sound.mp3"));
 
           TripDetails tripDetailsInfo = TripDetails();
 

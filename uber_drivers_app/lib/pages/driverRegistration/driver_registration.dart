@@ -10,6 +10,8 @@ import 'package:uber_drivers_app/providers/registration_provider.dart';
 import 'vehicle_info_screen.dart';
 
 class DriverRegistration extends StatefulWidget {
+  const DriverRegistration({super.key});
+
   @override
   _DriverRegistrationState createState() => _DriverRegistrationState();
 }
@@ -163,7 +165,7 @@ class _DriverRegistrationState extends State<DriverRegistration> {
                             bool? result = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => VehicleInfoScreen(),
+                                builder: (context) => const VehicleInfoScreen(),
                               ),
                             );
                             if (result != null && result) {
@@ -240,16 +242,19 @@ class _DriverRegistrationState extends State<DriverRegistration> {
     required bool isCompleted,
     required Function() onTap,
   }) {
-    return ListTile(
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w400),
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w400),
+        ),
+        subtitle: Text(subtitle),
+        trailing: isCompleted
+            ? const Icon(Icons.check_circle, color: Colors.green)
+            : const Icon(Icons.arrow_forward_ios),
+        onTap: onTap,
       ),
-      subtitle: Text(subtitle),
-      trailing: isCompleted
-          ? const Icon(Icons.check_circle, color: Colors.green)
-          : const Icon(Icons.arrow_forward_ios),
-      onTap: onTap,
     );
   }
 }
