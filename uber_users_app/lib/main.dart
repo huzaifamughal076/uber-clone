@@ -1,20 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:uber_users_app/appInfo/app_info.dart';
 import 'package:uber_users_app/appInfo/auth_provider.dart';
 import 'package:uber_users_app/authentication/register_screen.dart';
-import 'package:uber_users_app/global/global_var.dart';
 import 'package:uber_users_app/pages/blocked_screen.dart';
 import 'package:uber_users_app/pages/home_page.dart';
 
 late Size mq;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Stripe.publishableKey = stripePublishedKey;
   await Firebase.initializeApp();
   await Permission.locationWhenInUse.isDenied.then((valueOfPermission) {
     if (valueOfPermission) {

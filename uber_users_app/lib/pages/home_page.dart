@@ -1,14 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_geofire/flutter_geofire.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:restart_app/restart_app.dart';
@@ -38,9 +37,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final Completer<GoogleMapController> googleMapCompleterController =
-      Completer<GoogleMapController>();
-  GoogleMapController? controllerGoogleMap;
+  final MapController mapController = MapController();
   Position? currentPositionOfUser;
   GlobalKey<ScaffoldState> sKey = GlobalKey<ScaffoldState>();
   CommonMethods cMethods = CommonMethods();
@@ -51,13 +48,13 @@ class _HomePageState extends State<HomePage> {
   double tripContainerHeight = 0;
   DirectionDetails? tripDirectionDetailsInfo;
   List<LatLng> polylineCoOrdinates = [];
-  Set<Polyline> polylineSet = {};
-  Set<Marker> markerSet = {};
-  Set<Circle> circleSet = {};
+  List<Polyline> polylines = [];
+  List<Marker> markers = []; // pickup + drop-off markers
+  List<Marker> driverMarkers = []; // nearby online driver markers
+  List<CircleMarker> circles = [];
   bool isDrawerOpened = true;
   String stateOfApp = "normal";
   bool nearbyOnlineDriversKeysLoaded = false;
-  BitmapDescriptor? carIconNearbyDriver;
   DatabaseReference? tripRequestRef;
   List<OnlineNearbyDrivers>? availableNearbyOnlineDriversList;
   StreamSubscription<DatabaseEvent>? tripStreamSubscription;
@@ -70,34 +67,6 @@ class _HomePageState extends State<HomePage> {
   String estimatedTimeCar = "";
   double actualFareAmount = 0.0;
   String estimatedTime = "";
-  String? googleMapStyle;
-
-  makeDriverNearbyCarIcon() {
-    if (carIconNearbyDriver == null) {
-      ImageConfiguration configuration =
-          createLocalImageConfiguration(context, size: const Size(0.5, 0.5));
-      BitmapDescriptor.asset(configuration, "assets/images/tracking.png")
-          .then((iconImage) {
-        carIconNearbyDriver = iconImage;
-      });
-    }
-  }
-
-  Future<void> updateMapTheme() async {
-    final style = await getJsonFileFromThemes("themes/night_style.json");
-    if (mounted) {
-      setState(() {
-        googleMapStyle = style;
-      });
-    }
-  }
-
-  Future<String> getJsonFileFromThemes(String mapStylePath) async {
-    ByteData byteData = await rootBundle.load(mapStylePath);
-    var list = byteData.buffer
-        .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
-    return utf8.decode(list);
-  }
 
   getCurrentLiveLocationOfUser() async {
     Position positionOfUser = await Geolocator.getCurrentPosition(
@@ -107,14 +76,13 @@ class _HomePageState extends State<HomePage> {
     LatLng positionOfUserInLatLng = LatLng(
         currentPositionOfUser!.latitude, currentPositionOfUser!.longitude);
 
-    CameraPosition cameraPosition =
-        CameraPosition(target: positionOfUserInLatLng, zoom: 15);
-    controllerGoogleMap!
-        .animateCamera(CameraUpdate.newCameraPosition(cameraPosition));
+    mapController.move(positionOfUserInLatLng, 15);
 
     if (!mounted) return;
     await CommonMethods.convertGeoGraphicCoOrdinatesIntoHumanReadableAddress(
         currentPositionOfUser!, context);
+
+    if (mounted) setState(() {}); // refresh the user-location marker
 
     await getUserInfoAndCheckBlockStatus();
 
@@ -215,116 +183,75 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    polylineSet.clear();
     if (mounted) {
       setState(() {
-        Polyline polyline = Polyline(
-          polylineId: const PolylineId("polylineID"),
-          color: Colors.pink,
-          points: polylineCoOrdinates,
-          jointType: JointType.round,
-          width: 4,
-          startCap: Cap.roundCap,
-          endCap: Cap.roundCap,
-          geodesic: true,
-        );
+        polylines = [
+          Polyline(
+            points: polylineCoOrdinates,
+            color: Colors.pink,
+            strokeWidth: 4,
+          ),
+        ];
 
-        polylineSet.add(polyline);
+        markers = [
+          Marker(
+            point: pickupGeoGraphicCoOrdinates,
+            width: 40,
+            height: 40,
+            alignment: Alignment.topCenter,
+            child: const Icon(Icons.location_on,
+                color: Colors.green, size: 40),
+          ),
+          Marker(
+            point: dropOffDestinationGeoGraphicCoOrdinates,
+            width: 40,
+            height: 40,
+            alignment: Alignment.topCenter,
+            child: const Icon(Icons.location_on,
+                color: Colors.redAccent, size: 40),
+          ),
+        ];
+
+        circles = [
+          CircleMarker(
+            point: pickupGeoGraphicCoOrdinates,
+            radius: 8,
+            color: Colors.pink,
+            borderColor: Colors.blue,
+            borderStrokeWidth: 3,
+          ),
+          CircleMarker(
+            point: dropOffDestinationGeoGraphicCoOrdinates,
+            radius: 8,
+            color: Colors.pink,
+            borderColor: Colors.blue,
+            borderStrokeWidth: 3,
+          ),
+        ];
       });
     }
 
-    //fit the polyline into the map
-    LatLngBounds boundsLatLng;
-    if (pickupGeoGraphicCoOrdinates.latitude >
-            dropOffDestinationGeoGraphicCoOrdinates.latitude &&
-        pickupGeoGraphicCoOrdinates.longitude >
-            dropOffDestinationGeoGraphicCoOrdinates.longitude) {
-      boundsLatLng = LatLngBounds(
-        southwest: dropOffDestinationGeoGraphicCoOrdinates,
-        northeast: pickupGeoGraphicCoOrdinates,
-      );
-    } else if (pickupGeoGraphicCoOrdinates.longitude >
-        dropOffDestinationGeoGraphicCoOrdinates.longitude) {
-      boundsLatLng = LatLngBounds(
-        southwest: LatLng(pickupGeoGraphicCoOrdinates.latitude,
-            dropOffDestinationGeoGraphicCoOrdinates.longitude),
-        northeast: LatLng(dropOffDestinationGeoGraphicCoOrdinates.latitude,
-            pickupGeoGraphicCoOrdinates.longitude),
-      );
-    } else if (pickupGeoGraphicCoOrdinates.latitude >
-        dropOffDestinationGeoGraphicCoOrdinates.latitude) {
-      boundsLatLng = LatLngBounds(
-        southwest: LatLng(dropOffDestinationGeoGraphicCoOrdinates.latitude,
-            pickupGeoGraphicCoOrdinates.longitude),
-        northeast: LatLng(pickupGeoGraphicCoOrdinates.latitude,
-            dropOffDestinationGeoGraphicCoOrdinates.longitude),
-      );
-    } else {
-      boundsLatLng = LatLngBounds(
-        southwest: pickupGeoGraphicCoOrdinates,
-        northeast: dropOffDestinationGeoGraphicCoOrdinates,
-      );
-    }
-
-    controllerGoogleMap!
-        .animateCamera(CameraUpdate.newLatLngBounds(boundsLatLng, 72));
-
-    //add markers to pickup and dropOffDestination points
-    Marker pickUpPointMarker = Marker(
-      markerId: const MarkerId("pickUpPointMarkerID"),
-      position: pickupGeoGraphicCoOrdinates,
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-      infoWindow: InfoWindow(
-          title: pickUpLocation.placeName, snippet: "Pickup Location"),
+    //fit the route into the map
+    final pointsToFit = <LatLng>[
+      pickupGeoGraphicCoOrdinates,
+      dropOffDestinationGeoGraphicCoOrdinates,
+      ...polylineCoOrdinates,
+    ];
+    mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: LatLngBounds.fromPoints(pointsToFit),
+        padding: const EdgeInsets.all(60),
+      ),
     );
-
-    Marker dropOffDestinationPointMarker = Marker(
-      markerId: const MarkerId("dropOffDestinationPointMarkerID"),
-      position: dropOffDestinationGeoGraphicCoOrdinates,
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
-      infoWindow: InfoWindow(
-          title: dropOffDestinationLocation.placeName,
-          snippet: "Destination Location"),
-    );
-    if (mounted) {
-      setState(() {
-        markerSet.add(pickUpPointMarker);
-        markerSet.add(dropOffDestinationPointMarker);
-      });
-    }
-
-    //add circles to pickup and dropOffDestination points
-    Circle pickUpPointCircle = Circle(
-      circleId: const CircleId('pickupCircleID'),
-      strokeColor: Colors.blue,
-      strokeWidth: 4,
-      radius: 14,
-      center: pickupGeoGraphicCoOrdinates,
-      fillColor: Colors.pink,
-    );
-
-    Circle dropOffDestinationPointCircle = Circle(
-      circleId: const CircleId('dropOffDestinationCircleID'),
-      strokeColor: Colors.blue,
-      strokeWidth: 4,
-      radius: 14,
-      center: dropOffDestinationGeoGraphicCoOrdinates,
-      fillColor: Colors.pink,
-    );
-    if (mounted) {
-      setState(() {
-        circleSet.add(pickUpPointCircle);
-        circleSet.add(dropOffDestinationPointCircle);
-      });
-    }
   }
 
   resetAppNow() {
     setState(() {
       polylineCoOrdinates.clear();
-      polylineSet.clear();
-      markerSet.clear();
-      circleSet.clear();
+      polylines.clear();
+      markers.clear();
+      driverMarkers.clear();
+      circles.clear();
       rideDetailsContainerHeight = 0;
       requestContainerHeight = 0;
       tripContainerHeight = 0;
@@ -342,8 +269,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   cancelRideRequest() {
-    //remove ride request from database
-    tripRequestRef!.remove();
+    //remove ride request from database and stop listening to it
+    tripRequestRef?.remove();
+    tripStreamSubscription?.cancel();
+    tripStreamSubscription = null;
     if (mounted) {
       setState(() {
         stateOfApp = "normal";
@@ -366,34 +295,31 @@ class _HomePageState extends State<HomePage> {
   }
 
   updateAvailableNearbyOnlineDriversOnMap() {
-    if (mounted) {
-      setState(() {
-        markerSet.clear();
-      });
-    }
-
-    Set<Marker> markersTempSet = <Marker>{};
+    List<Marker> tempDriverMarkers = [];
 
     for (OnlineNearbyDrivers eachOnlineNearbyDriver
         in ManageDriversMethods.nearbyOnlineDriversList) {
-      LatLng driverCurrentPosition = LatLng(
-          eachOnlineNearbyDriver.latDriver!, eachOnlineNearbyDriver.lngDriver!);
+      if (eachOnlineNearbyDriver.latDriver == null ||
+          eachOnlineNearbyDriver.lngDriver == null) {
+        continue;
+      }
 
-      Marker driverMarker = Marker(
-        markerId: MarkerId(
-            "driver ID = ${eachOnlineNearbyDriver.uidDriver}"),
-        position: driverCurrentPosition,
-        icon: carIconNearbyDriver!,
+      tempDriverMarkers.add(
+        Marker(
+          point: LatLng(eachOnlineNearbyDriver.latDriver!,
+              eachOnlineNearbyDriver.lngDriver!),
+          width: 40,
+          height: 40,
+          child: Image.asset("assets/images/tracking.png"),
+        ),
       );
-
-      markersTempSet.add(driverMarker);
     }
 
-    setState(() {
-      if (mounted) {
-        markerSet = markersTempSet;
-      }
-    });
+    if (mounted) {
+      setState(() {
+        driverMarkers = tempDriverMarkers;
+      });
+    }
   }
 
   initializeGeoFireListener() {
@@ -561,8 +487,7 @@ class _HomePageState extends State<HomePage> {
         Geofire.stopListener();
 
         setState(() {
-          markerSet.removeWhere(
-              (element) => element.markerId.value.contains("driver"));
+          driverMarkers.clear();
         });
       }
 
@@ -681,7 +606,8 @@ class _HomePageState extends State<HomePage> {
       builder: (BuildContext context) => const InfoDialog(
         title: "No Driver Available",
         description:
-            "No driver found in the nearby location. Please try again shortly.",
+            "No nearby drivers found for the selected vehicle. Try choosing a "
+            "different vehicle (Car, Auto or Bike) and tap Find Driver again.",
       ),
     );
   }
@@ -689,7 +615,18 @@ class _HomePageState extends State<HomePage> {
   searchDriver() {
     if (availableNearbyOnlineDriversList!.isEmpty) {
       cancelRideRequest();
-      resetAppNow();
+
+      // Go back to the ride-details screen so the rider can switch vehicle
+      // and search again, instead of resetting the whole trip.
+      if (mounted) {
+        setState(() {
+          requestContainerHeight = 0;
+          rideDetailsContainerHeight = 500;
+          bottomMapPadding = 240;
+          isDrawerOpened = false;
+        });
+      }
+
       noDriverAvailable();
       return;
     }
@@ -868,7 +805,6 @@ class _HomePageState extends State<HomePage> {
     final authProvider =
         Provider.of<AuthenticationProvider>(context, listen: false);
     final appProvider = Provider.of<AppInfoClass>(context, listen: false);
-    makeDriverNearbyCarIcon();
 
     return SafeArea(
       child: Scaffold(
@@ -876,30 +812,59 @@ class _HomePageState extends State<HomePage> {
         drawer: CustomDrawer(userName: userName, authProvider: authProvider),
         body: Stack(
           children: [
-            ///google map
-            GoogleMap(
-              style: googleMapStyle,
-              padding: EdgeInsets.only(top: 26, bottom: bottomMapPadding),
-              mapType: MapType.normal,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              polylines: polylineSet,
-              markers: markerSet,
-              circles: circleSet,
-              initialCameraPosition: googlePlexInitialPosition,
-              onMapCreated: (GoogleMapController mapController) async {
-                controllerGoogleMap = mapController;
-                //updateMapTheme();
-
-                googleMapCompleterController.complete(controllerGoogleMap);
-
-                setState(() {
-                  bottomMapPadding = 300;
-                });
-
-                await getCurrentLiveLocationOfUser();
-              },
+            ///OpenStreetMap (flutter_map)
+            FlutterMap(
+              mapController: mapController,
+              options: MapOptions(
+                initialCenter: googlePlexInitialPosition,
+                initialZoom: initialMapZoom,
+                onMapReady: () async {
+                  await getCurrentLiveLocationOfUser();
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.uber_users_app',
+                ),
+                PolylineLayer(polylines: polylines),
+                CircleLayer(circles: circles),
+                MarkerLayer(
+                  markers: [
+                    if (currentPositionOfUser != null)
+                      Marker(
+                        point: LatLng(currentPositionOfUser!.latitude,
+                            currentPositionOfUser!.longitude),
+                        width: 22,
+                        height: 22,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            shape: BoxShape.circle,
+                            border:
+                                Border.all(color: Colors.white, width: 3),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ...markers,
+                    ...driverMarkers,
+                  ],
+                ),
+                RichAttributionWidget(
+                  attributions: [
+                    TextSourceAttribution(
+                      'OpenStreetMap contributors',
+                      onTap: () => launchUrl(
+                        Uri.parse('https://www.openstreetmap.org/copyright'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
 
             ///drawer button
@@ -1395,14 +1360,14 @@ class _HomePageState extends State<HomePage> {
                               const SizedBox(
                                 height: 5,
                               ),
-                              Row(
+                              const Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.payment,
                                     color: Colors.white,
                                     size: 20,
                                   ),
-                                  const SizedBox(
+                                  SizedBox(
                                     width: 10,
                                   ),
                                   Expanded(
@@ -1410,34 +1375,16 @@ class _HomePageState extends State<HomePage> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Text(
+                                        Text(
                                           "Payment Method",
                                           style: TextStyle(color: Colors.white),
                                         ),
-                                        DropdownButton<String>(
-                                          value: selectedPaymentMethod,
-                                          dropdownColor: Colors.grey,
-                                          style: const TextStyle(
-                                              color: Colors.white),
-                                          icon: const Icon(
-                                            Icons.arrow_drop_down,
+                                        Text(
+                                          "Cash (COD)",
+                                          style: TextStyle(
                                             color: Colors.white,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                          onChanged: (String? newValue) {
-                                            setState(() {
-                                              selectedPaymentMethod = newValue!;
-                                            });
-                                          },
-                                          items: <String>[
-                                            'Cash',
-                                            'Credit Card',
-                                          ].map<DropdownMenuItem<String>>(
-                                              (String value) {
-                                            return DropdownMenuItem<String>(
-                                              value: value,
-                                              child: Text(value),
-                                            );
-                                          }).toList(),
                                         ),
                                       ],
                                     ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:restart_app/restart_app.dart';
 
 class InfoDialog extends StatelessWidget {
   final String? title, description;
@@ -48,10 +47,7 @@ class InfoDialog extends StatelessWidget {
                   width: 202,
                   child: ElevatedButton(
                     onPressed: () {
-
                       Navigator.pop(context);
-                      Restart.restartApp();
-                      
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey,

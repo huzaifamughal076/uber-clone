@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 class Geofire {
-  static const MethodChannel _channel = const MethodChannel('geofire');
+  static const MethodChannel _channel = MethodChannel('geofire');
 
-  static const EventChannel _stream = const EventChannel('geofireStream');
+  static const EventChannel _stream = EventChannel('geofireStream');
 
   static const onKeyEntered = "onKeyEntered";
   static const onGeoQueryReady = "onGeoQueryReady";
@@ -43,7 +43,7 @@ class Geofire {
     final Map<dynamic, dynamic> response = await (_channel
         .invokeMethod('getLocation', <String, dynamic>{"id": id}));
 
-    Map<String, dynamic> location = new Map();
+    Map<String, dynamic> location = {};
 
     response.forEach((key, value) {
       location[key] = value;
@@ -63,9 +63,7 @@ class Geofire {
       // print("Error " + error);
     });
 
-    if (_queryAtLocation == null) {
-      _queryAtLocation = _stream.receiveBroadcastStream();
-    }
+    _queryAtLocation ??= _stream.receiveBroadcastStream();
     return _queryAtLocation;
   }
 }

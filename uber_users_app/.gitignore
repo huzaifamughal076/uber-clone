@@ -41,3 +41,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# FCM service account (contains a private key - never commit)
+assets/fcm/service_account.json

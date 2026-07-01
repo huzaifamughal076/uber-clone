@@ -3,11 +3,10 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:uber_users_app/appInfo/app_info.dart';
-import 'package:uber_users_app/global/global_var.dart';
 import 'package:uber_users_app/models/address_models.dart';
 
 import '../models/direction_details.dart';
@@ -31,7 +30,12 @@ class CommonMethods {
   }
 
   static sendRequestToAPI(String apiUrl) async {
-    http.Response responseFromAPI = await http.get(Uri.parse(apiUrl));
+    // A descriptive User-Agent is required by OpenStreetMap services
+    // (Nominatim will reject requests without one).
+    http.Response responseFromAPI = await http.get(
+      Uri.parse(apiUrl),
+      headers: const {"User-Agent": "uber_users_app/1.0 (Flutter)"},
+    );
 
     try {
       if (responseFromAPI.statusCode == 200) {
@@ -52,13 +56,14 @@ class CommonMethods {
   static Future<String> convertGeoGraphicCoOrdinatesIntoHumanReadableAddress(
       Position position, BuildContext context) async {
     String humanReadableAddress = "";
+    // Reverse geocoding via OpenStreetMap Nominatim (free, no API key).
     String apiGeoCodingUrl =
-        "https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.latitude},${position.longitude}&key=$googleMapKey";
+        "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${position.latitude}&lon=${position.longitude}&zoom=18&addressdetails=1";
 
     var responseFromAPI = await sendRequestToAPI(apiGeoCodingUrl);
 
-    if (responseFromAPI != "error") {
-      humanReadableAddress = responseFromAPI["results"][0]["formatted_address"];
+    if (responseFromAPI != "error" && responseFromAPI["display_name"] != null) {
+      humanReadableAddress = responseFromAPI["display_name"];
 
       AddressModel model = AddressModel();
       model.humanReadableAddress = humanReadableAddress;
@@ -91,38 +96,49 @@ class CommonMethods {
 
   static Future<DirectionDetails?> getDirectionDetailsFromAPI(
       LatLng source, LatLng destination) async {
+    // Routing via the free OSRM demo server. Note OSRM expects lon,lat order
+    // and returns an encoded polyline (precision 5) plus distance (m) and
+    // duration (s).
     String urlDirectionAPI =
-        "https://maps.googleapis.com/maps/api/directions/json?destination=${destination.latitude},${destination.longitude}&origin=${source.latitude},${source.longitude}&mode=driving&key=$googleMapKey";
+        "https://router.project-osrm.org/route/v1/driving/"
+        "${source.longitude},${source.latitude};"
+        "${destination.longitude},${destination.latitude}"
+        "?overview=full&geometries=polyline";
 
-    debugPrint("URL: $urlDirectionAPI"); // Debugging: Log the URL
+    debugPrint("URL: $urlDirectionAPI");
 
     var responseFromDirectionAPI = await sendRequestToAPI(urlDirectionAPI);
 
     if (responseFromDirectionAPI == "error") {
-      debugPrint("Error in response"); // Debugging: Log error
+      debugPrint("Error in response");
       return null;
     }
 
-    debugPrint("Response: $responseFromDirectionAPI"); // Debugging: Log the response
-
     if (responseFromDirectionAPI["routes"] == null ||
-        responseFromDirectionAPI["routes"].isEmpty) {
+        (responseFromDirectionAPI["routes"] as List).isEmpty) {
       debugPrint("No routes found in the response.");
       return null;
     }
 
     DirectionDetails directionDetails = DirectionDetails();
     try {
+      var route = responseFromDirectionAPI["routes"][0];
+
+      double distanceMeters = (route["distance"] as num).toDouble();
+      double durationSeconds = (route["duration"] as num).toDouble();
+
+      directionDetails.distanceValueDigit = distanceMeters.round();
+      directionDetails.durationValueDigit = durationSeconds.round();
+      directionDetails.encodedPoints = route["geometry"];
+
       directionDetails.distanceTextString =
-          responseFromDirectionAPI["routes"][0]["legs"][0]["distance"]["text"];
-      directionDetails.distanceValueDigit =
-          responseFromDirectionAPI["routes"][0]["legs"][0]["distance"]["value"];
+          "${(distanceMeters / 1000).toStringAsFixed(1)} km";
+
+      int totalMinutes = (durationSeconds / 60).round();
+      int hours = totalMinutes ~/ 60;
+      int minutes = totalMinutes % 60;
       directionDetails.durationTextString =
-          responseFromDirectionAPI["routes"][0]["legs"][0]["duration"]["text"];
-      directionDetails.durationValueDigit =
-          responseFromDirectionAPI["routes"][0]["legs"][0]["duration"]["value"];
-      directionDetails.encodedPoints =
-          responseFromDirectionAPI["routes"][0]["overview_polyline"]["points"];
+          hours > 0 ? "$hours hours $minutes mins" : "$minutes mins";
     } catch (e) {
       debugPrint("Error processing response data: $e");
       return null;

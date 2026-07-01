@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_geofire/flutter_geofire.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(const MyApp());
 
 class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   _MyAppState createState() => _MyAppState();
 }
@@ -82,18 +84,15 @@ class _MyAppState extends State<MyApp> {
           ),
           body: Column(
             children: <Widget>[
-              Padding(
+              const Padding(
                 padding: EdgeInsets.all(20.0),
               ),
               Center(
-                child: keysRetrieved.length > 0
-                    ? Text("First key is " +
-                        keysRetrieved.first.toString() +
-                        "\nTotal Keys " +
-                        keysRetrieved.length.toString())
-                    : CircularProgressIndicator(),
+                child: keysRetrieved.isNotEmpty
+                    ? Text("First key is ${keysRetrieved.first}\nTotal Keys ${keysRetrieved.length}")
+                    : const CircularProgressIndicator(),
               ),
-              Padding(
+              const Padding(
                 padding: EdgeInsets.all(10.0),
               ),
               Center(
@@ -104,13 +103,13 @@ class _MyAppState extends State<MyApp> {
                   onPressed: () {
                     setLocation();
                   },
-                  child: Text(
+                  child: const Text(
                     "Set Location",
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
               ),
-              Padding(
+              const Padding(
                 padding: EdgeInsets.all(10.0),
               ),
               Center(
@@ -121,13 +120,13 @@ class _MyAppState extends State<MyApp> {
                   onPressed: () {
                     setLocationFirst();
                   },
-                  child: Text(
+                  child: const Text(
                     "Set Location AsH28LWk8MXfwRLfVxgx",
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
               ),
-              Padding(
+              const Padding(
                 padding: EdgeInsets.all(10.0),
               ),
               Center(
@@ -138,13 +137,13 @@ class _MyAppState extends State<MyApp> {
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                   ),
-                  child: Text(
+                  child: const Text(
                     "Get Location AsH28LWk8MXfwRLfVxgx",
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
               ),
-              Padding(
+              const Padding(
                 padding: EdgeInsets.all(10.0),
               ),
               Center(
@@ -155,13 +154,13 @@ class _MyAppState extends State<MyApp> {
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                   ),
-                  child: Text(
+                  child: const Text(
                     "Remove Location AsH28LWk8MXfwRLfVxgx",
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
               ),
-              Padding(
+              const Padding(
                 padding: EdgeInsets.all(10.0),
               ),
               // Center(
@@ -187,7 +186,7 @@ class _MyAppState extends State<MyApp> {
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                   ),
-                  child: Text(
+                  child: const Text(
                     "Remove Query Listener",
                     style: TextStyle(color: Colors.white),
                   ),
@@ -200,7 +199,7 @@ class _MyAppState extends State<MyApp> {
 
   void setLocation() async {
     bool? response = await Geofire.setLocation(
-        new DateTime.now().millisecondsSinceEpoch.toString(),
+        DateTime.now().millisecondsSinceEpoch.toString(),
         30.730743,
         76.774948);
 

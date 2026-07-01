@@ -1,21 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:uber_users_app/services/stripe_payment_service.dart';
 
-class PaymentDialog extends StatefulWidget {
+class PaymentDialog extends StatelessWidget {
   final String fareAmount;
 
   const PaymentDialog({
     super.key,
     required this.fareAmount,
   });
-
-  @override
-  State<PaymentDialog> createState() => _PaymentDialogState();
-}
-
-class _PaymentDialogState extends State<PaymentDialog> {
-  Map<String, dynamic>? paymentIntent;
-  final StripePaymentService _paymentService = StripePaymentService();
 
   @override
   Widget build(BuildContext context) {
@@ -33,16 +24,22 @@ class _PaymentDialogState extends State<PaymentDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 21),
+            const SizedBox(height: 24),
+            const Icon(Icons.payments_outlined, size: 44, color: Colors.black),
+            const SizedBox(height: 12),
             const Text(
-              "PAY CASH",
-              style: TextStyle(color: Colors.black),
+              "CASH ON DELIVERY",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
             ),
-            const SizedBox(height: 21),
+            const SizedBox(height: 18),
             const Divider(height: 1.5, color: Colors.black54, thickness: 1.0),
             const SizedBox(height: 16),
             Text(
-              "Rs ${widget.fareAmount}",
+              "Rs $fareAmount",
               style: const TextStyle(
                   color: Colors.black,
                   fontSize: 36,
@@ -52,73 +49,39 @@ class _PaymentDialogState extends State<PaymentDialog> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                "This is fare amount ( Rs ${widget.fareAmount} ) you have to pay to the driver.",
+                "Please pay Rs $fareAmount in cash to your driver.",
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.black),
               ),
             ),
-            const SizedBox(height: 31),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, "paid");
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-              child: const Text("PAY WITH CASH",
-                  style: TextStyle(color: Colors.white)),
+            const SizedBox(height: 28),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context, "paid");
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    "CONFIRM CASH PAYMENT",
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () async {
-                await makePayment();
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-              child: const Text("PAY WITH CREDIT CARD",
-                  style: TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(height: 41),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, "paid");
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-              child: const Text("OK", style: TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(height: 31),
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
-  }
-
-  Future<void> makePayment() async {
-    try {
-      // Convert fareAmount to paisa for PKR (multiply by 100)
-      String amountInPaisa =
-          (double.parse(widget.fareAmount) * 100).toInt().toString();
-
-      // Create payment intent for PKR using the fare amount
-      paymentIntent =
-          await _paymentService.createPaymentIntent(amountInPaisa, 'PKR');
-
-      if (paymentIntent != null) {
-        if (!mounted) return;
-        // Initialize the payment sheet
-        await _paymentService.initPaymentSheet(
-          context,
-          paymentIntent!['client_secret'],
-          'PKR',
-        );
-
-        // Display the payment sheet
-        if (!mounted) return;
-        await _paymentService.displayPaymentSheet(
-            context, paymentIntent!['client_secret']);
-
-        // If payment is successful, you can handle it here
-        paymentIntent = null;
-      }
-    } catch (e) {
-      debugPrint("Exception: $e");
-    }
   }
 }

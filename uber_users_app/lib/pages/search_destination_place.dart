@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:uber_users_app/appInfo/app_info.dart';
-import 'package:uber_users_app/global/global_var.dart';
 import 'package:uber_users_app/main.dart';
 import 'package:uber_users_app/methods/common_methods.dart';
+import 'package:uber_users_app/models/address_models.dart';
 import 'package:uber_users_app/models/prediction_model.dart';
 import 'package:uber_users_app/widgets/prediction_place_ui.dart';
 
@@ -19,49 +22,55 @@ class _SearchDestinationPlaceState extends State<SearchDestinationPlace> {
   TextEditingController destinationTextEditingController =
       TextEditingController();
 
+  final MapController _previewMapController = MapController();
+  AddressModel? selectedDropOff;
+  List<LatLng> previewRoutePoints = [];
+
   List<PredictionModel> dropOffPredictionsPlacesList = [];
   searchLocation(String locationName) async {
     if (locationName.length > 1) {
+      // Autocomplete via the free Photon (OpenStreetMap) geocoder. Bias the
+      // results toward the user's current pickup location when we have it.
+      final pickUp =
+          Provider.of<AppInfoClass>(context, listen: false).pickUpLocation;
+      String bias = "";
+      if (pickUp?.latitudePosition != null &&
+          pickUp?.longitudePosition != null) {
+        bias = "&lat=${pickUp!.latitudePosition}&lon=${pickUp.longitudePosition}";
+      }
+
       String apiPlacesUrl =
-          "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$locationName&key=$googleMapKey&components=country:pk";
+          "https://photon.komoot.io/api/?q=${Uri.encodeComponent(locationName)}"
+          "&limit=8&lang=en$bias";
       debugPrint('API PLACE URL $apiPlacesUrl');
 
       var responseFromPlacesAPI =
           await CommonMethods.sendRequestToAPI(apiPlacesUrl);
 
       if (responseFromPlacesAPI == "error") {
-        return;
-      }
-
-      if (responseFromPlacesAPI["status"] == "OK") {
-        var predictionsResultsInJson = responseFromPlacesAPI["predictions"];
-        var predictionsList = (predictionsResultsInJson as List)
-            .map(
-              (eachPlacePrediction) =>
-                  PredictionModel.fromJson(eachPlacePrediction),
-            )
-            .toList();
-
-        // Check if the widget is still mounted before calling setState
         if (mounted) {
-          setState(() {
-            dropOffPredictionsPlacesList = predictionsList;
-          });
-          debugPrint("predicted places = $predictionsResultsInJson");
-        }
-      } else {
-        // Surface API errors instead of failing silently (e.g. billing
-        // disabled, API not enabled, key restricted).
-        final status = responseFromPlacesAPI["status"];
-        final message = responseFromPlacesAPI["error_message"] ?? "";
-        debugPrint("Places Autocomplete failed: $status - $message");
-        if (mounted) {
-          setState(() => dropOffPredictionsPlacesList = []);
           CommonMethods().displaySnackBar(
-            "Places search failed: $status${message.isNotEmpty ? "\n$message" : ""}",
+            "Place search failed. Check your internet connection.",
             context,
           );
         }
+        return;
+      }
+
+      var featuresList = (responseFromPlacesAPI["features"] ?? []) as List;
+      var predictionsList = featuresList
+          .map((feature) =>
+              PredictionModel.fromPhoton(feature as Map<String, dynamic>))
+          .where((prediction) =>
+              prediction.latitude != null &&
+              prediction.longitude != null &&
+              (prediction.mainText ?? "").isNotEmpty)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          dropOffPredictionsPlacesList = predictionsList;
+        });
       }
     }
   }
@@ -188,6 +197,12 @@ class _SearchDestinationPlaceState extends State<SearchDestinationPlace> {
                                   child: TextField(
                                     controller: destinationTextEditingController,
                                     onChanged: (value) {
+                                      if (selectedDropOff != null) {
+                                        setState(() {
+                                          selectedDropOff = null;
+                                          previewRoutePoints = [];
+                                        });
+                                      }
                                       searchLocation(value);
                                     },
                                     decoration: const InputDecoration(
@@ -210,43 +225,220 @@ class _SearchDestinationPlaceState extends State<SearchDestinationPlace> {
                   ),
                 ),
               ),
-              //diplay the prediction results
-              (dropOffPredictionsPlacesList.isNotEmpty)
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 5,
-                        horizontal: 5,
-                      ),
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(0),
-                        
-                        
-                        itemBuilder: (context, index) {
-                          return Card(
-                            //color: Colors.white10,
-                            elevation: 5,
-                            
-                            
-                            child: PredictionPlaceUI(
-                              predictedPlaceData:
-                                  dropOffPredictionsPlacesList[index],
-                            ),
-                          );
-                        },
-                        separatorBuilder: (BuildContext context, int index) =>
-                            const SizedBox(
-                          height: 10,
+              //display the prediction results
+              if (selectedDropOff == null &&
+                  dropOffPredictionsPlacesList.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 5,
+                    horizontal: 5,
+                  ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(0),
+                    itemBuilder: (context, index) {
+                      return Card(
+                        elevation: 5,
+                        child: PredictionPlaceUI(
+                          predictedPlaceData:
+                              dropOffPredictionsPlacesList[index],
+                          onSelected: (dropOff) {
+                            Provider.of<AppInfoClass>(context, listen: false)
+                                .updateDropOffLocation(dropOff);
+                            FocusScope.of(context).unfocus();
+                            setState(() {
+                              selectedDropOff = dropOff;
+                              dropOffPredictionsPlacesList = [];
+                              previewRoutePoints = [];
+                              destinationTextEditingController.text =
+                                  dropOff.placeName ?? "";
+                            });
+                            _loadPreviewRoute();
+                          },
                         ),
-                        itemCount: dropOffPredictionsPlacesList.length,
-                        shrinkWrap: true,
-                        physics: const ClampingScrollPhysics(),
-                      ),
-                    )
-                  : Container(),
+                      );
+                    },
+                    separatorBuilder: (BuildContext context, int index) =>
+                        const SizedBox(
+                      height: 10,
+                    ),
+                    itemCount: dropOffPredictionsPlacesList.length,
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                  ),
+                ),
+
+              //map preview once a destination is chosen
+              if (selectedDropOff != null) _buildMapPreview(),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildMapPreview() {
+    final pickUp =
+        Provider.of<AppInfoClass>(context, listen: false).pickUpLocation;
+
+    final dropLatLng = LatLng(
+      selectedDropOff!.latitudePosition!,
+      selectedDropOff!.longitudePosition!,
+    );
+
+    final bool hasPickup = pickUp?.latitudePosition != null &&
+        pickUp?.longitudePosition != null;
+    final LatLng? pickLatLng = hasPickup
+        ? LatLng(pickUp!.latitudePosition!, pickUp.longitudePosition!)
+        : null;
+
+    final points = <LatLng>[if (pickLatLng != null) pickLatLng, dropLatLng];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(
+              height: mq.height * 0.42,
+              child: FlutterMap(
+                mapController: _previewMapController,
+                options: MapOptions(
+                  initialCenter: dropLatLng,
+                  initialZoom: 13,
+                  onMapReady: () => _fitPreviewCamera(points),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.uber_users_app',
+                  ),
+                  if (pickLatLng != null)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: previewRoutePoints.isNotEmpty
+                              ? previewRoutePoints
+                              : [pickLatLng, dropLatLng],
+                          color: Colors.pink,
+                          strokeWidth: 4,
+                        ),
+                      ],
+                    ),
+                  MarkerLayer(
+                    markers: [
+                      if (pickLatLng != null)
+                        Marker(
+                          point: pickLatLng,
+                          width: 44,
+                          height: 44,
+                          child: const Icon(
+                            Icons.person_pin_circle,
+                            color: Colors.blue,
+                            size: 44,
+                          ),
+                        ),
+                      Marker(
+                        point: dropLatLng,
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.topCenter,
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.redAccent,
+                          size: 40,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const RichAttributionWidget(
+                    attributions: [
+                      TextSourceAttribution('OpenStreetMap contributors'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            selectedDropOff!.placeName ?? "",
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 52,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context, "placeSelected"),
+              child: const Text(
+                "Confirm Destination",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Fetches the road-following route (OSRM) between pickup and the selected
+  /// drop-off and draws it on the preview map.
+  Future<void> _loadPreviewRoute() async {
+    final pickUp =
+        Provider.of<AppInfoClass>(context, listen: false).pickUpLocation;
+    if (pickUp?.latitudePosition == null ||
+        pickUp?.longitudePosition == null ||
+        selectedDropOff?.latitudePosition == null ||
+        selectedDropOff?.longitudePosition == null) {
+      return;
+    }
+
+    final pickLatLng =
+        LatLng(pickUp!.latitudePosition!, pickUp.longitudePosition!);
+    final dropLatLng = LatLng(
+        selectedDropOff!.latitudePosition!, selectedDropOff!.longitudePosition!);
+
+    final details =
+        await CommonMethods.getDirectionDetailsFromAPI(pickLatLng, dropLatLng);
+
+    if (!mounted || details?.encodedPoints == null) return;
+
+    final decoded =
+        PolylinePoints().decodePolyline(details!.encodedPoints!);
+    final points =
+        decoded.map((p) => LatLng(p.latitude, p.longitude)).toList();
+
+    if (points.isEmpty) return;
+
+    setState(() {
+      previewRoutePoints = points;
+    });
+
+    _fitPreviewCamera([pickLatLng, dropLatLng, ...points]);
+  }
+
+  void _fitPreviewCamera(List<LatLng> points) {
+    if (points.length < 2) return;
+    try {
+      _previewMapController.fitCamera(
+        CameraFit.bounds(
+          bounds: LatLngBounds.fromPoints(points),
+          padding: const EdgeInsets.all(50),
+        ),
+      );
+    } catch (_) {
+      // Map not rendered yet; onMapReady will handle the initial fit.
+    }
   }
 }
