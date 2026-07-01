@@ -15,6 +15,10 @@ import '../widgets/notification_dialog.dart';
 
 class PushNotificationSystem {
   FirebaseMessaging firebaseCloudMessaging = FirebaseMessaging.instance;
+
+  // Guards against showing the same trip request twice (e.g. if both the
+  // database listener and an FCM message fire for the same trip).
+  static String? _lastHandledTripId;
   Future<String?> generateDeviceRegistrationToken() async {
     String? deviceRecognitionToken = await firebaseCloudMessaging.getToken();
 
@@ -69,6 +73,10 @@ class PushNotificationSystem {
   }
 
   retrieveTripRequestInfo(String tripID, BuildContext context) {
+    // Avoid double-handling the same trip (DB listener + FCM).
+    if (tripID == _lastHandledTripId) return;
+    _lastHandledTripId = tripID;
+
     // Use the global navigatorKey to get the current context
     final currentContext = navigatorKey.currentContext;
 

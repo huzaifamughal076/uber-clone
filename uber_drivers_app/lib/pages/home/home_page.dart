@@ -84,7 +84,30 @@ class _HomePageState extends State<HomePage> {
         .child("newTripStatus");
     newTripRequestReference!.set("waiting");
 
-    newTripRequestReference!.onValue.listen((event) {});
+    // Surface new trip requests via the database (works even without FCM):
+    // the rider writes the tripID here before sending the push notification.
+    newTripRequestReference!.onValue.listen((event) {
+      final value = event.snapshot.value;
+      if (value == null) return;
+      final status = value.toString();
+
+      const ignored = {
+        "waiting",
+        "accepted",
+        "arrived",
+        "ontrip",
+        "ended",
+        "cancelled",
+        "timeout",
+        "idle",
+        "",
+      };
+      if (ignored.contains(status)) return;
+
+      // Anything else is a tripID assigned to this driver.
+      if (!mounted) return;
+      PushNotificationSystem().retrieveTripRequestInfo(status, context);
+    });
   }
 
   setAndGetLocationUpdates() {
